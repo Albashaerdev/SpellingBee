@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spelling Bee Pro | Premium</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --secondary: #a855f7;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --glass: rgba(255, 255, 255, 0.1);
+            --text: #ffffff;
+        }
+
+        * { box-sizing: border-box; font-family: 'Inter', 'Segoe UI', sans-serif; }
+
+        /* Themes */
+        .bg-default { background: #0f172a; color: #f8fafc; }
+        .bg-ocean { background: linear-gradient(135deg, #075985, #1e3a8a); color: white; }
+        .bg-neon { background: #000; color: #00ff41; text-shadow: 0 0 8px #00ff41; }
+        .bg-galaxy { background: radial-gradient(circle at top, #2e1065, #000000); color: white; }
+
+        body { margin: 0; padding: 20px; transition: background 0.6s ease; min-height: 100vh; display: flex; justify-content: center; }
+
+        .container { 
+            width: 100%; 
+            max-width: 700px; 
+            background: var(--glass); 
+            backdrop-filter: blur(16px); 
+            -webkit-backdrop-filter: blur(16px);
+            padding: 30px; 
+            border-radius: 24px; 
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .hidden { display: none !important; }
+        
+        header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        input { 
+            padding: 14px; 
+            border-radius: 12px; 
+            border: 1px solid rgba(255,255,255,0.2); 
+            background: rgba(0,0,0,0.2); 
+            color: white; 
+            width: 100%; 
+            outline: none;
+            font-size: 1rem;
+        }
+
+        button { 
+            padding: 12px 24px; 
+            border: none; 
+            border-radius: 12px; 
+            background: var(--primary); 
+            color: white; 
+            cursor: pointer; 
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        button:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.2); }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .big-btn { width: 100%; font-size: 1.2rem; background: var(--success); margin-bottom: 20px; padding: 18px; }
+        
+        section { 
+            margin-bottom: 25px; 
+            padding: 20px; 
+            border-radius: 16px; 
+            background: rgba(255,255,255,0.05);
+        }
+
+        .word-item { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 12px; 
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; opacity: 0.7; font-size: 0.8rem; text-transform: uppercase; padding: 10px; }
+        td { padding: 12px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+
+        .shop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .msg { font-weight: bold; margin-top: 15px; text-align: center; min-height: 1.2em; }
+        
+        .badge { background: var(--secondary); padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; }
+    </style>
+</head>
+<body class="bg-default" id="main-body">
+
+    <div id="login-screen" class="container">
+        <h1 style="margin-top:0">🐝 Spelling Bee Pro</h1>
+        <p style="opacity:0.8">Sign in to track points and unlock themes.</p>
+        
+        <div style="display:flex; flex-direction:column; gap:15px;">
+            <input type="text" id="username-input" placeholder="Enter Username...">
+            
+            <div id="password-area" class="hidden">
+                <p id="pw-label" style="font-size:0.9rem; margin: 5px 0; color:var(--secondary)"></p>
+                <input type="password" id="password-input" placeholder="Enter Admin Password...">
+            </div>
+
+            <button id="login-btn">Start Playing</button>
+        </div>
+        <p id="login-msg" class="msg" style="color: var(--danger);"></p>
+    </div>
+
+    <div id="app-screen" class="container hidden">
+        <header>
+            <div>
+                <h2 id="welcome-text" style="margin:0">Hi, Player</h2>
+                <span class="badge" id="role-badge">USER</span>
+            </div>
+            <div style="text-align:right">
+                <div style="font-size:1.5rem; font-weight:bold" id="points-display">0</div>
+                <div style="font-size:0.7rem; opacity:0.6">TOTAL POINTS</div>
+            </div>
+        </header>
+
+        <section id="admin-panel" class="hidden" style="border: 2px solid var(--secondary)">
+            <h3 style="margin-top:0">🛠️ Admin Controls</h3>
+            
+            <div style="display:flex; gap:10px; margin-bottom: 15px;">
+                <input type="text" id="new-word-input" placeholder="Add a new word...">
+                <button id="add-word-btn" style="background:var(--secondary)">Add</button>
+            </div>
+
+            <button id="toggle-word-list-btn" style="width:100%; background:rgba(255,255,255,0.1); margin-bottom:10px;">
+                👁️ View/Manage Words (Disables Quiz)
+            </button>
+
+            <div id="word-list-admin" class="hidden">
+                </div>
+        </section>
+
+        <section id="quiz-area">
+            <h3 style="margin-top:0">🎮 Spelling Quiz</h3>
+            <button id="play-word-btn" class="big-btn">🔊 Hear Word</button>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="spell-input" placeholder="Type the word here...">
+                <button id="submit-spell-btn">Submit</button>
+            </div>
+            <p id="game-msg" class="msg"></p>
+        </section>
+
+        <section>
+            <h3 style="margin-top:0">🏆 Hall of Fame</h3>
+            <table>
+                <thead>
+                    <tr><th>User</th><th>Points</th></tr>
+                </thead>
+                <tbody id="leaderboard-body">
+                    <tr><td colspan="2" style="text-align:center">Loading leaderboard...</td></tr>
+                </tbody>
+            </table>
+            <p id="leaderboard-error" class="msg" style="color:var(--danger); font-size:0.8rem;"></p>
+        </section>
+
+        <section>
+            <h3 style="margin-top:0">🛒 Customizer</h3>
+            <div class="shop-grid">
+                <button class="buy-btn" data-theme="bg-ocean" data-cost="20">Ocean (20)</button>
+                <button class="buy-btn" data-theme="bg-neon" data-cost="50">Neon (50)</button>
+                <button class="buy-btn" data-theme="bg-galaxy" data-cost="100">Galaxy (100)</button>
+                <button class="buy-btn" data-theme="bg-default" data-cost="0" style="background:#475569">Default</button>
+            </div>
+        </section>
+
+        <button onclick="location.reload()" style="width:100%; margin-top:10px; background:var(--danger)">Logout</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBtCy-YbS2LC_cF5LlWRHXqa7SD-Rn5E6k",
+            authDomain: "spelling-bee-f845d.firebaseapp.com",
+            projectId: "spelling-bee-f845d",
+            storageBucket: "spelling-bee-f845d.appspot.com",
+            messagingSenderId: "465817747027",
+            appId: "1:465817747027:web:931e7cc47636d0b77590a6"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+        let wordsList = [];
+        let currentWord = "";
+        let lastWordSpelled = "";
+        let isAdmin = false;
+
+        const loginScreen = document.getElementById('login-screen');
+        const appScreen = document.getElementById('app-screen');
+        const pointsDisplay = document.getElementById('points-display');
+        const gameMsg = document.getElementById('game-msg');
+        const userIn = document.getElementById('username-input');
+        const passArea = document.getElementById('password-area');
+        const passIn = document.getElementById('password-input');
+
+        userIn.addEventListener('input', async () => {
+            const val = userIn.value.trim().toLowerCase();
+            if (val === "abdullah") {
+                passArea.classList.remove('hidden');
+                const userRef = doc(db, "users", "abdullah");
+                const snap = await getDoc(userRef);
+                document.getElementById('pw-label').innerText = (snap.exists() && snap.data().password) 
+                    ? "Admin Password Required:" 
+                    : "First time login? Set your Admin Password:";
+            } else {
+                passArea.classList.add('hidden');
+            }
+        });
+
+        document.getElementById('login-btn').addEventListener('click', async () => {
+            const username = userIn.value.trim().toLowerCase();
+            if (!username) return;
+
+            const userRef = doc(db, "users", username);
+            const userSnap = await getDoc(userRef);
+
+            if (username === "abdullah") {
+                const pw = passIn.value.trim();
+                if (!pw) { alert("Admin needs a password!"); return; }
+
+                if (userSnap.exists() && userSnap.data().password) {
+                    if (userSnap.data().password !== pw) {
+                        document.getElementById('login-msg').innerText = "Incorrect Password!";
+                        return;
+                    }
+                    currentUser = { id: username, ...userSnap.data() };
+                } else {
+                    currentUser = { id: username, points: 0, unlockedThemes: ["bg-default"], password: pw, isAdmin: true };
+                    await setDoc(userRef, currentUser);
+                }
+                isAdmin = true;
+            } else {
+                if (userSnap.exists()) {
+                    currentUser = { id: username, ...userSnap.data() };
+                    // Ensure points is a number
+                    if (typeof currentUser.points !== 'number') currentUser.points = 0;
+                } else {
+                    currentUser = { id: username, points: 0, unlockedThemes: ["bg-default"], isAdmin: false };
+                    await setDoc(userRef, currentUser);
+                }
+            }
+            setupApp();
+        });
+
+        function setupApp() {
+            loginScreen.classList.add('hidden');
+            appScreen.classList.remove('hidden');
+            document.getElementById('welcome-text').innerText = `Hi, ${currentUser.id}`;
+            pointsDisplay.innerText = currentUser.points;
+            if (isAdmin) {
+                document.getElementById('admin-panel').classList.remove('hidden');
+                document.getElementById('role-badge').innerText = "ADMIN";
+                refreshAdminWords();
+            }
+            fetchWords();
+            setupLeaderboard();
+        }
+
+        const toggleBtn = document.getElementById('toggle-word-list-btn');
+        const adminWordList = document.getElementById('word-list-admin');
+        const quizArea = document.getElementById('quiz-area');
+
+        toggleBtn.addEventListener('click', () => {
+            const isShowing = !adminWordList.classList.contains('hidden');
+            if (isShowing) {
+                adminWordList.classList.add('hidden');
+                quizArea.style.opacity = "1";
+                quizArea.querySelectorAll('button, input').forEach(el => el.disabled = false);
+                toggleBtn.innerText = "👁️ View/Manage Words (Disables Quiz)";
+            } else {
+                adminWordList.classList.remove('hidden');
+                quizArea.style.opacity = "0.3";
+                quizArea.querySelectorAll('button, input').forEach(el => el.disabled = true);
+                toggleBtn.innerText = "🙈 Hide Words (Enable Quiz)";
+                refreshAdminWords();
+            }
+        });
+
+        async function refreshAdminWords() {
+            adminWordList.innerHTML = "<p>Loading...</p>";
+            const snap = await getDocs(collection(db, "words"));
+            adminWordList.innerHTML = "";
+            snap.forEach(d => {
+                const item = document.createElement('div');
+                item.className = "word-item";
+                item.innerHTML = `<span>${d.data().word}</span><button style="background:var(--danger)" onclick="deleteWord('${d.id}')">Delete</button>`;
+                adminWordList.appendChild(item);
+            });
+        }
+
+        window.deleteWord = async (id) => {
+            await deleteDoc(doc(db, "words", id));
+            refreshAdminWords();
+            fetchWords();
+        };
+
+        document.getElementById('add-word-btn').addEventListener('click', async () => {
+            const inp = document.getElementById('new-word-input');
+            const w = inp.value.trim().toLowerCase();
+            if (w) {
+                await addDoc(collection(db, "words"), { word: w });
+                inp.value = "";
+                refreshAdminWords();
+                fetchWords();
+            }
+        });
+
+        async function fetchWords() {
+            const snapshot = await getDocs(collection(db, "words"));
+            wordsList = snapshot.docs.map(doc => doc.data().word);
+        }
+
+        function getBestVoice() {
+            const voices = window.speechSynthesis.getVoices();
+            return voices.find(v => v.name.includes("Google UK English Female")) || 
+                   voices.find(v => v.lang === "en-GB") || 
+                   voices.find(v => v.lang.startsWith("en")) || 
+                   voices[0];
+        }
+
+        document.getElementById('play-word-btn').addEventListener('click', () => {
+            if (!wordsList.length) { gameMsg.innerText = "Admin list is empty!"; return; }
+            currentWord = wordsList[Math.floor(Math.random() * wordsList.length)];
+            const utter = new SpeechSynthesisUtterance(currentWord);
+            utter.voice = getBestVoice();
+            utter.rate = 0.85;
+            utter.pitch = 1.1;
+            window.speechSynthesis.speak(utter);
+            gameMsg.innerText = "Listening...";
+        });
+
+        document.getElementById('submit-spell-btn').addEventListener('click', async () => {
+            const input = document.getElementById('spell-input');
+            const attempt = input.value.trim().toLowerCase();
+            if (!currentWord) return;
+
+            if (attempt === currentWord) {
+                if (currentWord === lastWordSpelled) {
+                    gameMsg.innerText = "No points for the same word twice!";
+                    gameMsg.style.color = "orange";
+                } else {
+                    currentUser.points = (currentUser.points || 0) + 10;
+                    pointsDisplay.innerText = currentUser.points;
+                    gameMsg.innerText = "🎉 Correct! +10 Points!";
+                    gameMsg.style.color = "var(--success)";
+                    lastWordSpelled = currentWord;
+                    await updateDoc(doc(db, "users", currentUser.id), { points: currentUser.points });
+                }
+                input.value = "";
+                currentWord = ""; 
+            } else {
+                gameMsg.innerText = "❌ Try again!";
+                gameMsg.style.color = "var(--danger)";
+            }
+        });
+
+        // FIXED LEADERBOARD FUNCTION
+        function setupLeaderboard() {
+            const leaderboardBody = document.getElementById('leaderboard-body');
+            const errorDisplay = document.getElementById('leaderboard-error');
+
+            // Query users ordered by points (Number) descending
+            const q = query(collection(db, "users"), orderBy("points", "desc"), limit(5));
+            
+            onSnapshot(q, (snap) => {
+                leaderboardBody.innerHTML = "";
+                if (snap.empty) {
+                    leaderboardBody.innerHTML = "<tr><td colspan='2'>No scores yet!</td></tr>";
+                    return;
+                }
+                snap.forEach(u => {
+                    const data = u.data();
+                    const name = u.id;
+                    const pts = data.points || 0;
+                    const isAdm = data.isAdmin ? ' ⭐' : '';
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td>${name}${isAdm}</td><td>${pts}</td>`;
+                    leaderboardBody.appendChild(row);
+                });
+                errorDisplay.innerText = ""; // Clear errors if successful
+            }, (error) => {
+                console.error("Leaderboard error:", error);
+                if (error.message.includes("index")) {
+                    errorDisplay.innerText = "Firebase needs an index. Check browser console for the link!";
+                } else {
+                    errorDisplay.innerText = "Leaderboard failed to load.";
+                }
+            });
+        }
+
+        document.querySelectorAll('.buy-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const t = e.target.dataset.theme;
+                const cost = parseInt(e.target.dataset.cost);
+                if (currentUser.unlockedThemes.includes(t)) {
+                    document.getElementById('main-body').className = t;
+                } else if (currentUser.points >= cost) {
+                    currentUser.points -= cost;
+                    currentUser.unlockedThemes.push(t);
+                    pointsDisplay.innerText = currentUser.points;
+                    document.getElementById('main-body').className = t;
+                    await updateDoc(doc(db, "users", currentUser.id), { 
+                        points: currentUser.points, 
+                        unlockedThemes: currentUser.unlockedThemes 
+                    });
+                } else {
+                    alert("Keep playing! You need more points.");
+                }
+            });
+        });
+
+        window.speechSynthesis.onvoiceschanged = getBestVoice;
+    </script>
+</body>
+</html>
