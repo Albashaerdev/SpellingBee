@@ -1,15 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Spelling Bee Pro | Deluxe Mobile</title>
+    <meta charset="UTF-88">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes">
+    <title>Spelling Bee Pro | Level Up Faster!</title>
     <style>
         :root {
             --primary: #6366f1;
             --secondary: #a855f7;
             --success: #22c55e;
             --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #3b82f6;
             --glass: rgba(255, 255, 255, 0.1);
             --text: #ffffff;
         }
@@ -21,236 +23,155 @@
         }
 
         /* --- ALL REACTIVE THEMES --- */
-        .bg-default { 
-            background: #0f172a; 
-            color: #f8fafc; 
-        }
+        .bg-default { background: #0f172a; color: #f8fafc; }
+        .bg-ocean { background: linear-gradient(135deg, #075985, #1e3a8a); color: white; }
+        .bg-neon { background: #000; color: #00ff41; text-shadow: 0 0 8px #00ff41; }
+        .bg-galaxy { background: radial-gradient(circle at 30% 30%, #2e1065, #000000, #0f172a); background-size: 200% 200%; color: #f0e68c; text-shadow: 0 0 10px #c084fc; }
+        .bg-chess { background-color: #ffffff; background-image: repeating-conic-gradient(#2c2c2c 0% 25%, #ffffff 0% 50%); background-position: 0 0, 30px 30px; background-size: 60px 60px; color: #000; }
+        .bg-roblox { background: #202225 repeating-linear-gradient(45deg, rgba(255,0,0,0.2) 0px, rgba(255,0,0,0.2) 20px, transparent 20px, transparent 40px); border-top: 10px solid #f63131; color: white; text-shadow: 2px 2px 0 #000; }
+        .bg-fortnite { background: linear-gradient(135deg, #1a0b2e 0%, #2a1b4a 50%, #0b3b5c 100%); position: relative; color: #a0e7ff; text-shadow: 0 0 8px #0077ff; }
+        .bg-fortnite::before { content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: repeating-linear-gradient(0deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 2px, transparent 2px, transparent 8px); pointer-events: none; }
+        .bg-secret { background-color: #f8c8dc; background-image: radial-gradient(circle at 20% 30%, #ffb6c1 5%, transparent 5%), radial-gradient(circle at 80% 70%, #ffb6c1 5%, transparent 5%), repeating-linear-gradient(45deg, transparent, transparent 10px, #ff99aa 10px, #ff99aa 20px); color: #4a1a2c; text-shadow: 2px 2px 5px #fff2f5; }
+        .bg-midnight { background: #0a0f1e; color: #cbd5e1; box-shadow: inset 0 0 100px #2563eb20; }
+        .bg-sunset { background: linear-gradient(135deg, #ff7e5f, #feb47b); color: #2d1b0e; }
+        .bg-forest { background: #0b3b2f repeating-linear-gradient(45deg, #2e7d5e 0px, #2e7d5e 2px, transparent 2px, transparent 12px); color: #e7f5e7; }
+        .bg-oceandeep { background: linear-gradient(145deg, #006994, #001f3f); color: #b3e0ff; }
+        .bg-cyber { background: #0d0f1a repeating-linear-gradient(45deg, #00ffff10 0px, #00ffff10 20px, #ff00ff10 20px, #ff00ff10 40px); color: #ffb3ff; text-shadow: 0 0 5px cyan; }
+        .bg-pastel { background: linear-gradient(135deg, #fbc2c2, #c2f0fc); color: #4a4a4a; }
+        .bg-dark { background: #121212; color: #e0e0e0; }
+        .bg-light { background: #f5f5f5; color: #1e1e1e; }
+        .bg-candy { background: repeating-linear-gradient(45deg, #ffb6c1, #ffb6c1 20px, #ffe4e1 20px, #ffe4e1 40px); color: #8b4513; }
+        .bg-lavender { background: linear-gradient(145deg, #e6e6fa, #d8bfd8); color: #2d2d4a; }
 
-        .bg-ocean { 
-            background: linear-gradient(135deg, #075985, #1e3a8a); 
-            color: white; 
-        }
-
-        .bg-neon { 
-            background: #000; 
-            color: #00ff41; 
-            text-shadow: 0 0 8px #00ff41; 
-        }
-
-        .bg-galaxy { 
-            background: radial-gradient(circle at top, #2e1065, #000000); 
-            color: white; 
-        }
+        body { margin: 0; padding: 15px; transition: background 0.6s ease, color 0.6s ease; min-height: 100vh; display: flex; justify-content: center; align-items: flex-start; font-size: 16px; }
+        .container { width: 100%; max-width: 900px; background: var(--glass); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); padding: 20px; border-radius: 32px; border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5); animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .hidden { display: none !important; }
         
-        /* Chess: Grandmaster Checkers */
-        .bg-chess { 
-            background-color: #ffffff;
-            background-image: repeating-conic-gradient(#2c2c2c 0% 25%, #ffffff 0% 50%);
-            background-position: 0 0, 30px 30px;
-            background-size: 60px 60px;
-            color: #000;
-        }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); flex-wrap: wrap; gap: 10px; }
+        .stats { display: flex; gap: 20px; flex-wrap: wrap; }
+        .stat-item { text-align: center; background: rgba(0,0,0,0.3); padding: 8px 15px; border-radius: 30px; }
+        .stat-label { font-size: 0.75rem; opacity: 0.7; }
+        .stat-value { font-size: 1.3rem; font-weight: 700; color: var(--success); }
 
-        /* Roblox: Red/Dark Header */
-        .bg-roblox { 
-            background: #202225; 
-            border-top: 10px solid #f63131; 
-            color: white; 
-        }
+        input, select, button { font-size: 1rem; padding: 14px 18px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.4); color: white; outline: none; transition: all 0.3s; }
+        input:focus, select:focus { border-color: var(--primary); background: rgba(0,0,0,0.6); }
+        button { background: var(--primary); cursor: pointer; font-weight: 700; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: none; min-width: 48px; min-height: 48px; }
+        button:active { transform: scale(0.96); }
+        button:disabled { opacity: 0.3; cursor: not-allowed; }
 
-        /* Fortnite: Purple/Blue Storm Neon */
-        .bg-fortnite { 
-            background: linear-gradient(135deg, #12002f 0%, #4b0082 50%, #00008b 100%); 
-            color: #00f2ff; 
-        }
-
-        /* Secret: Lilly Love Braids (Exclusive) */
-        .bg-secret { 
-            background: linear-gradient(to bottom, #ff9a9e 0%, #fecfef 100%); 
-            color: #d63384; 
-        }
-
-        body { 
-            margin: 0; 
-            padding: 15px; 
-            transition: background 0.6s ease, color 0.6s ease; 
-            min-height: 100vh; 
-            display: flex; 
-            justify-content: center; 
-            align-items: flex-start;
-        }
-
-        .container { 
-            width: 100%; 
-            max-width: 600px; 
-            background: var(--glass); 
-            backdrop-filter: blur(25px); 
-            -webkit-backdrop-filter: blur(25px);
-            padding: 25px; 
-            border-radius: 32px; 
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
-            animation: fadeIn 0.4s ease-out;
-        }
-
-        @keyframes fadeIn { 
-            from { 
-                opacity: 0; 
-                transform: translateY(10px); 
-            } 
-            to { 
-                opacity: 1; 
-                transform: translateY(0); 
-            } 
-        }
-
-        .hidden { 
-            display: none !important; 
-        }
+        .big-btn { width: 100%; font-size: 1.3rem; background: var(--success); margin-bottom: 10px; padding: 18px; box-shadow: 0 8px 20px rgba(34, 197, 94, 0.3); }
+        .action-row { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .action-row input { flex: 2; min-width: 200px; }
+        .action-row button { flex: 1; min-width: 80px; }
         
-        header { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            margin-bottom: 25px; 
-            padding-bottom: 15px; 
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
+        section { margin-bottom: 20px; padding: 20px; border-radius: 24px; background: rgba(255,255,255,0.06); }
+        .section-title { display: flex; align-items: center; gap: 10px; margin-top: 0; margin-bottom: 15px; font-size: 1.2rem; }
 
-        input { 
-            padding: 18px; 
-            border-radius: 16px; 
-            border: 1px solid rgba(255,255,255,0.2); 
-            background: rgba(0,0,0,0.4); 
-            color: white; 
-            width: 100%; 
-            outline: none; 
-            font-size: 16px; /* Essential for iOS no-zoom */
-            transition: all 0.3s;
-        }
+        .shop-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+        .shop-grid button { padding: 14px 6px; font-size: 0.9rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); white-space: normal; line-height: 1.2; }
 
-        input:focus { 
-            border-color: var(--primary); 
-            background: rgba(0,0,0,0.6); 
-        }
-
-        button { 
-            padding: 16px 24px; 
-            border: none; 
-            border-radius: 16px; 
-            background: var(--primary); 
-            color: white; 
-            cursor: pointer; 
-            font-weight: 700; 
-            font-size: 1rem; 
-            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
-        button:active { 
-            transform: scale(0.94); 
-        }
-
-        button:disabled { 
-            opacity: 0.3; 
-            cursor: not-allowed; 
-        }
-
-        .big-btn { 
-            width: 100%; 
-            font-size: 1.3rem; 
-            background: var(--success); 
-            margin-bottom: 20px; 
-            padding: 22px; 
-            box-shadow: 0 8px 20px rgba(34, 197, 94, 0.3);
-        }
+        .msg { font-weight: 700; margin-top: 12px; text-align: center; min-height: 1.5em; font-size: 1rem; }
+        .badge { background: var(--secondary); padding: 5px 12px; border-radius: 10px; font-size: 0.75rem; font-weight: 900; }
         
-        section { 
-            margin-bottom: 20px; 
-            padding: 20px; 
-            border-radius: 24px; 
-            background: rgba(255,255,255,0.06);
+        #deck-info { font-size: 0.8rem; opacity: 0.6; text-align: center; margin-top: 8px; letter-spacing: 0.5px; }
+
+        table { width: 100%; border-collapse: collapse; }
+        td { padding: 12px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.95rem; }
+
+        .voice-selector { margin-bottom: 15px; }
+        .voice-selector select { width: 100%; padding: 14px; }
+
+        .tabs { display: flex; gap: 5px; margin-bottom: 15px; flex-wrap: wrap; }
+        .tab { flex: 1; background: rgba(255,255,255,0.1); border: none; padding: 12px; border-radius: 30px; cursor: pointer; font-weight: 600; }
+        .tab.active { background: var(--primary); }
+
+        .challenge-timer { font-size: 2rem; text-align: center; font-weight: 800; color: var(--warning); margin: 10px 0; }
+        .rank-info { display: flex; justify-content: space-between; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 20px; margin-bottom: 10px; }
+
+        .powerup-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 10px 0; }
+        .powerup-card { background: rgba(255,255,255,0.1); padding: 10px; border-radius: 16px; text-align: center; }
+
+        /* Animation for congrats */
+        .congrats-animation {
+            animation: bounce 0.5s ease;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); background: gold; color: black; }
         }
 
-        .shop-grid { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); 
-            gap: 12px; 
+        .settings-panel {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: var(--success);
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
         }
 
-        .shop-grid button { 
-            padding: 14px 8px; 
-            font-size: 0.85rem; 
-        }
-
-        .msg { 
-            font-weight: 700; 
-            margin-top: 15px; 
-            text-align: center; 
-            min-height: 1.5em; 
-            font-size: 1.1rem; 
-        }
-
-        .badge { 
-            background: var(--secondary); 
-            padding: 5px 12px; 
-            border-radius: 10px; 
-            font-size: 0.75rem; 
-            font-weight: 900; 
-        }
-        
-        #deck-info { 
-            font-size: 0.75rem; 
-            opacity: 0.6; 
-            text-align: center; 
-            margin-top: 8px; 
-            letter-spacing: 0.5px; 
-        }
-
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-        }
-
-        td { 
-            padding: 15px 10px; 
-            border-bottom: 1px solid rgba(255,255,255,0.05); 
-        }
-        
-        /* Custom Scrollbar for Admin Word List */
-        #word-list-admin::-webkit-scrollbar { 
-            width: 6px; 
-        }
-
-        #word-list-admin::-webkit-scrollbar-thumb { 
-            background: var(--secondary); 
-            border-radius: 10px; 
-        }
-
-        @media (max-width: 480px) {
-            .container { 
-                padding: 20px; 
-            }
-            .shop-grid { 
-                grid-template-columns: 1fr 1fr; 
-            }
+        @media (min-width: 768px) {
+            body { padding: 30px; }
+            .container { padding: 35px; }
+            button { padding: 16px 24px; }
+            .big-btn { font-size: 1.6rem; }
+            .shop-grid button { font-size: 1rem; }
         }
     </style>
 </head>
 <body class="bg-default" id="main-body">
 
     <div id="login-screen" class="container">
-        <h1 style="margin:0; font-size: 2.2rem; text-align: center;">🎙️ Spelling Bee</h1>
-        <p style="opacity:0.7; margin-bottom: 30px; text-align: center;">The ultimate arena for words.</p>
+        <h1 style="margin:0; font-size: clamp(2rem, 8vw, 2.8rem); text-align: center;">🎙️ Spelling Bee</h1>
+        <p style="opacity:0.7; margin-bottom: 30px; text-align: center; font-size: 1.1rem;">Level up, compete, and rule the words!</p>
         
         <div style="display:flex; flex-direction:column; gap:15px;">
             <input type="text" id="username-input" placeholder="Enter Username" autocomplete="off">
             
             <div id="password-area" class="hidden">
-                <p id="pw-label" style="font-size:0.85rem; margin: 5px 0; color:var(--secondary); font-weight:bold;"></p>
+                <p id="pw-label" style="font-size:0.9rem; margin: 5px 0; color:var(--secondary); font-weight:bold;"></p>
                 <input type="password" id="password-input" placeholder="Password">
             </div>
 
             <button id="login-btn" style="margin-top: 10px;">Join Match</button>
+            <button id="manage-password-btn" style="background:var(--info);">🔐 Manage Password</button>
         </div>
         <p id="login-msg" class="msg" style="color: var(--danger);"></p>
     </div>
@@ -258,64 +179,201 @@
     <div id="app-screen" class="container hidden">
         <header>
             <div>
-                <h2 id="welcome-text" style="margin:0; font-size: 1.3rem;">Welcome</h2>
+                <h2 id="welcome-text" style="margin:0; font-size: 1.4rem;">Welcome</h2>
                 <span class="badge" id="role-badge">STUDENT</span>
             </div>
-            <div style="text-align:right">
-                <div style="font-size:1.8rem; font-weight:900; color:var(--success)" id="points-display">0</div>
-                <div style="font-size:0.65rem; opacity:0.7; letter-spacing: 1.5px;">TOTAL SCORE</div>
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-label">SCORE</div>
+                    <div class="stat-value" id="points-display">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">LEVEL</div>
+                    <div class="stat-value" id="level-display">1</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">XP</div>
+                    <div class="stat-value" id="xp-display">0/30</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">RP</div>
+                    <div class="stat-value" id="rp-display">0</div>
+                </div>
             </div>
         </header>
 
+        <!-- Settings Panel -->
+        <section>
+            <h3 class="section-title">⚙️ Settings</h3>
+            <div class="settings-panel">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="congrats-toggle" checked>
+                    <span class="slider"></span>
+                </label>
+                <span>🎉 Congrats Animation (every 5 correct)</span>
+            </div>
+        </section>
+
         <section id="admin-panel" class="hidden" style="border-left: 5px solid var(--secondary)">
-            <h3 style="margin-top:0; color: var(--secondary); display: flex; align-items: center; gap: 8px;">
-                <span>🛠️ Admin Terminal</span>
-            </h3>
+            <h3 class="section-title"><span>🛠️ Admin Terminal</span></h3>
             
-            <div style="display:flex; gap:10px; margin-bottom: 15px;">
-                <input type="text" id="new-word-input" placeholder="New Vocabulary Word">
-                <button id="add-word-btn" style="background:var(--secondary); padding: 0 20px;">Add</button>
+            <div style="display:flex; gap:10px; margin-bottom: 15px; flex-wrap: wrap;">
+                <input type="text" id="new-word-input" placeholder="New Vocabulary Word" style="flex:2;">
+                <button id="add-word-btn" style="background:var(--secondary); flex:1;">Add</button>
             </div>
 
-            <button id="toggle-word-list-btn" style="width:100%; background:rgba(255,255,255,0.1); font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2);">
+            <button id="toggle-word-list-btn" style="width:100%; background:rgba(255,255,255,0.1); font-size: 0.95rem; border: 1px solid rgba(255,255,255,0.2); margin-bottom: 15px;">
                 👁️ Manage Database (Quiz Lock)
             </button>
 
-            <div id="word-list-admin" class="hidden" style="margin-top: 20px; max-height: 250px; overflow-y: auto; padding-right: 5px;">
-                </div>
+            <div id="word-list-admin" class="hidden" style="margin-top: 20px; max-height: 250px; overflow-y: auto; padding-right: 5px;"></div>
+            <hr style="margin:20px 0; opacity:0.2">
+
+            <h4 style="margin:0 0 10px 0;">👑 Admin Manager</h4>
+            <div style="display:flex; gap:10px; flex-wrap: wrap;">
+                <input type="text" id="admin-target" placeholder="Username" style="flex: 2 1 120px;">
+                <input type="password" id="admin-password" placeholder="New Password" style="flex: 2 1 120px;">
+                <button id="make-admin-btn" style="background:var(--success); flex:1;">Make Admin</button>
+                <button id="remove-admin-btn" style="background:var(--danger); flex:1;">Remove Admin</button>
+            </div>
+            <p id="admin-msg" class="msg"></p>
+
+            <h4 style="margin:20px 0 10px 0;">🗑️ Delete Account</h4>
+            <div style="display:flex; gap:10px;">
+                <input type="text" id="delete-target" placeholder="Username to delete">
+                <button id="delete-account-btn" style="background:var(--danger);">Delete</button>
+            </div>
+            <p id="delete-msg" class="msg"></p>
+
+            <h4 style="margin:20px 0 10px 0;">📊 Leaderboard Management</h4>
+            <div style="display:flex; gap:10px; flex-wrap: wrap;">
+                <button id="remove-from-scoreboard-btn" style="background:var(--warning);">Remove from Score LB</button>
+                <button id="remove-from-rankboard-btn" style="background:var(--warning);">Remove from Rank LB</button>
+                <input type="text" id="lb-username" placeholder="Username">
+            </div>
         </section>
 
         <section id="quiz-area">
-            <button id="play-word-btn" class="big-btn">🔊 Hear Word</button>
-            <div style="display: flex; gap: 10px;">
-                <input type="text" id="spell-input" placeholder="Spell it here..." autocomplete="off" autocapitalize="off" spellcheck="false">
-                <button id="submit-spell-btn" style="min-width: 90px;">Check</button>
+            <div class="voice-selector">
+                <select id="voice-select"><option value="">Loading voices...</option></select>
             </div>
-            <p id="game-msg" class="msg"></p>
-            <div id="deck-info">Loading words...</div>
+
+            <div class="tabs">
+                <button class="tab active" data-mode="classic">Classic</button>
+                <button class="tab" data-mode="challenge" id="challenge-tab" disabled>⏳ Time Challenge (lvl 15)</button>
+                <button class="tab" data-mode="ranked" id="ranked-tab" disabled>🏆 Ranked (lvl 30)</button>
+                <button class="tab" data-mode="live" id="live-tab" disabled>🎮 Live Play (lvl 50)</button>
+            </div>
+
+            <!-- Classic Mode -->
+            <div id="classic-mode">
+                <button id="play-word-btn" class="big-btn">🔊 Hear Word</button>
+                <div class="action-row">
+                    <input type="text" id="spell-input" placeholder="Spell it here..." autocomplete="off" autocapitalize="off" spellcheck="false">
+                    <button id="submit-spell-btn">Check</button>
+                </div>
+                <div class="action-row">
+                    <button id="skip-word-btn" style="background:var(--warning);">⏭️ Skip (10 pts)</button>
+                </div>
+                <p id="game-msg" class="msg"></p>
+                <div id="deck-info">Loading words...</div>
+            </div>
+
+            <!-- Time Challenge Mode -->
+            <div id="challenge-mode" class="hidden">
+                <div class="challenge-timer" id="timer-display">15s</div>
+                <div>Word <span id="challenge-word-num">1</span>/5</div>
+                <button id="start-challenge-btn" class="big-btn">Start Challenge</button>
+                <div class="action-row">
+                    <input type="text" id="challenge-spell" placeholder="Spell..." disabled>
+                    <button id="submit-challenge-btn" disabled>Submit</button>
+                </div>
+                <p id="challenge-msg" class="msg"></p>
+            </div>
+
+            <!-- Ranked Mode -->
+            <div id="ranked-mode" class="hidden">
+                <div class="rank-info">
+                    <span>Rank Points: <strong id="rank-points">0</strong></span>
+                    <span>Difficulty Multiplier: <span id="difficulty-mult">1.0x</span></span>
+                </div>
+                <button id="play-ranked-btn" class="big-btn">🔊 Hear Word (Ranked)</button>
+                <div class="action-row">
+                    <input type="text" id="ranked-spell" placeholder="Spell...">
+                    <button id="submit-ranked-btn">Check</button>
+                </div>
+                <p id="ranked-msg" class="msg"></p>
+            </div>
+
+            <!-- Live Play Mode (placeholder) -->
+            <div id="live-mode" class="hidden">
+                <p style="text-align:center;">🎮 Live Play – Find an opponent (coming soon)</p>
+                <button id="find-match-btn" class="big-btn">Find Match</button>
+                <p id="live-msg" class="msg"></p>
+            </div>
         </section>
 
-        <section style="padding: 10px;">
-            <h3 style="margin: 10px; font-size: 1rem; opacity: 0.8;">🏆 Hall of Fame</h3>
-            <table>
-                <tbody id="leaderboard-body"></tbody>
-            </table>
-            <p id="leaderboard-error" class="msg" style="color:var(--danger); font-size:0.8rem;"></p>
+        <!-- Power-ups (unlocked at level 100) -->
+        <section id="powerups-section" class="hidden">
+            <h3 class="section-title">⚡ Power-Ups</h3>
+            <div class="powerup-grid">
+                <div class="powerup-card">
+                    <div>💡 Hint</div>
+                    <button id="use-hint" disabled>Use (50 pts)</button>
+                </div>
+                <div class="powerup-card">
+                    <div>✨ Double XP</div>
+                    <button id="use-doublexp" disabled>Use (100 pts)</button>
+                </div>
+                <div class="powerup-card">
+                    <div>🔄 Extra Time</div>
+                    <button id="use-time" disabled>Use (75 pts)</button>
+                </div>
+                <div class="powerup-card">
+                    <div>🛡️ Shield (no skip loss)</div>
+                    <button id="use-shield" disabled>Use (80 pts)</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Leaderboards -->
+        <section>
+            <h3 class="section-title">🏆 Leaderboards</h3>
+            <div class="tabs">
+                <button class="tab active" data-leaderboard="score">Score</button>
+                <button class="tab" data-leaderboard="level">Level</button>
+                <button class="tab" data-leaderboard="rank">Ranked</button>
+            </div>
+            <div id="score-leaderboard">
+                <table><tbody id="scoreboard-body"></tbody></table>
+            </div>
+            <div id="level-leaderboard" class="hidden">
+                <table><tbody id="levelboard-body"></tbody></table>
+            </div>
+            <div id="rank-leaderboard" class="hidden">
+                <table><tbody id="rankboard-body"></tbody></table>
+            </div>
         </section>
 
         <section>
-            <h3 style="margin-top:0; font-size: 1rem; opacity: 0.8;">🛒 Themes & Skins</h3>
-            <div class="shop-grid">
-                <button class="buy-btn" data-theme="bg-chess" data-cost="20">Chess (20)</button>
-                <button class="buy-btn" data-theme="bg-roblox" data-cost="40">Roblox (40)</button>
-                <button class="buy-btn" data-theme="bg-fortnite" data-cost="60">Fortnite (60)</button>
-                <button class="buy-btn" data-theme="bg-galaxy" data-cost="100">Galaxy (100)</button>
-                <button id="secret-btn" class="buy-btn hidden" data-theme="bg-secret" data-cost="0" style="background:linear-gradient(45deg, #ff69b4, #ff9a9e); border: 2px solid white;">💝 Lilly Love</button>
-                <button class="buy-btn" data-theme="bg-default" data-cost="0" style="background:#475569">Reset</button>
-            </div>
+            <h3 class="section-title">🛒 Themes & Skins</h3>
+            <div class="shop-grid" id="themes-grid"></div>
         </section>
 
-        <button onclick="location.reload()" style="width:100%; margin-top:15px; background:transparent; color: var(--danger); font-size: 0.85rem; border: 1.5px solid var(--danger); font-weight: 800;">LOGOUT SESSION</button>
+        <button onclick="location.reload()" style="width:100%; margin-top:15px; background:transparent; color: var(--danger); font-size: 0.95rem; border: 1.5px solid var(--danger); font-weight: 800; padding: 16px;">LOGOUT SESSION</button>
+    </div>
+
+    <!-- Password Management Modal -->
+    <div id="password-modal" class="container hidden" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; background: #1e1e2f;">
+        <h3>Manage Password</h3>
+        <input type="password" id="current-pw" placeholder="Current password (if any)">
+        <input type="password" id="new-pw" placeholder="New password">
+        <input type="password" id="confirm-pw" placeholder="Confirm new password">
+        <div style="display:flex; gap:10px; margin-top:15px;">
+            <button id="save-pw-btn">Save</button>
+            <button id="cancel-pw-btn">Cancel</button>
+        </div>
+        <p id="pw-modal-msg" class="msg"></p>
     </div>
 
     <script type="module">
@@ -334,142 +392,290 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        // ================== GAME STATE ==================
         let currentUser = null;
-        let wordsList = []; // Master list
-        let wordDeck = [];  // Current pool (Smart Deck)
+        let wordsList = [];
+        let wordDeck = [];
         let currentWord = "";
         let isAdmin = false;
+        let selectedVoiceURI = null;
+        let voices = [];
 
+        // Settings
+        let congratsEnabled = true;
+        let correctCount = 0; // for animation
+
+        // --- FAST LEVELING ---
+        function xpForLevel(level) {
+            return 30 + (level - 1) * 5;
+        }
+
+        // --- IMPROVED DIFFICULTY AI ---
+        function analyzeWordDifficulty(word) {
+            let score = 0;
+            if (word.length <= 4) score += 1;
+            else if (word.length <= 6) score += 2;
+            else score += 3;
+            
+            const rare = /[qzxyjvkw]/gi;
+            const matches = word.match(rare);
+            if (matches) score += matches.length * 0.5;
+            
+            if (/(.)\1/.test(word)) score += 1;
+            
+            score += (Math.random() - 0.5);
+            
+            if (score < 2.5) return 1;
+            if (score < 4.5) return 2;
+            return 3;
+        }
+
+        function xpForDifficulty(diff) {
+            if (diff === 1) return 8;
+            if (diff === 2) return 15;
+            return 25;
+        }
+
+        // Game modes
+        let currentMode = 'classic';
+        let challengeActive = false;
+        let challengeWords = [];
+        let challengeIndex = 0;
+        let challengeTimer = null;
+        let challengeTimeLeft = 15;
+        let rankedMultiplier = 1.0;
+        let powerups = {
+            hint: { owned: 0, price: 50 },
+            doubleXP: { owned: 0, price: 100 },
+            extraTime: { owned: 0, price: 75 },
+            shield: { owned: 0, price: 80 }
+        };
+
+        // DOM elements
         const loginScreen = document.getElementById('login-screen');
         const appScreen = document.getElementById('app-screen');
         const userIn = document.getElementById('username-input');
         const passArea = document.getElementById('password-area');
         const passIn = document.getElementById('password-input');
+        const pwLabel = document.getElementById('pw-label');
+        const voiceSelect = document.getElementById('voice-select');
+        const modal = document.getElementById('password-modal');
+        const congratsToggle = document.getElementById('congrats-toggle');
 
-        // Admin detection
-        userIn.addEventListener('input', async () => {
-            const val = userIn.value.trim().toLowerCase();
-            
-            if (val === "abdullah") {
-                passArea.classList.remove('hidden');
-                const snap = await getDoc(doc(db, "users", "abdullah"));
-                
-                if (snap.exists() && snap.data().password) {
-                    document.getElementById('pw-label').innerText = "Admin Login:";
-                } else {
-                    document.getElementById('pw-label').innerText = "Set New Admin Password:";
-                }
-            } else {
-                passArea.classList.add('hidden');
+        congratsToggle.addEventListener('change', () => {
+            congratsEnabled = congratsToggle.checked;
+        });
+
+        // ================== VOICE ==================
+        function populateVoices() {
+            voices = window.speechSynthesis.getVoices();
+            voiceSelect.innerHTML = '';
+            if (voices.length === 0) {
+                voiceSelect.innerHTML = '<option value="">No voices available</option>';
+                return;
+            }
+            voices.forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v.voiceURI;
+                opt.textContent = `${v.name} (${v.lang})`;
+                voiceSelect.appendChild(opt);
+            });
+            if (selectedVoiceURI) voiceSelect.value = selectedVoiceURI;
+            else if (currentUser?.preferredVoice) {
+                voiceSelect.value = currentUser.preferredVoice;
+                selectedVoiceURI = currentUser.preferredVoice;
+            }
+        }
+        window.speechSynthesis.onvoiceschanged = populateVoices;
+        if (window.speechSynthesis.getVoices().length) populateVoices();
+
+        voiceSelect.addEventListener('change', async () => {
+            selectedVoiceURI = voiceSelect.value;
+            if (currentUser) {
+                currentUser.preferredVoice = selectedVoiceURI;
+                await updateDoc(doc(db, "users", currentUser.id), { preferredVoice: selectedVoiceURI });
             }
         });
 
-        // Login Logic
-        document.getElementById('login-btn').addEventListener('click', async () => {
-            const username = userIn.value.trim().toLowerCase();
-            
-            if (!username) {
+        function speakWord(word) {
+            if (!word) return;
+            const utter = new SpeechSynthesisUtterance(word);
+            utter.rate = 0.8;
+            if (selectedVoiceURI) {
+                const voice = voices.find(v => v.voiceURI === selectedVoiceURI);
+                if (voice) utter.voice = voice;
+            }
+            window.speechSynthesis.speak(utter);
+        }
+
+        // ================== LOGIN / PASSWORD MANAGEMENT ==================
+        let usernameCheckTimeout;
+        userIn.addEventListener('input', () => {
+            clearTimeout(usernameCheckTimeout);
+            const val = userIn.value.trim().toLowerCase();
+            if (val === "") { passArea.classList.add('hidden'); return; }
+            if (val === "abdullah") {
+                passArea.classList.remove('hidden');
+                pwLabel.innerText = "Admin Login:";
                 return;
             }
+            usernameCheckTimeout = setTimeout(async () => {
+                const userRef = doc(db, "users", val);
+                const userSnap = await getDoc(userRef);
+                if (userSnap.exists() && userSnap.data().password) {
+                    passArea.classList.remove('hidden');
+                    pwLabel.innerText = `Password for ${val}:`;
+                } else {
+                    passArea.classList.add('hidden');
+                }
+            }, 500);
+        });
 
+        document.getElementById('login-btn').addEventListener('click', async () => {
+            const username = userIn.value.trim().toLowerCase();
+            if (!username) { document.getElementById('login-msg').innerText = "Enter a username."; return; }
             const userRef = doc(db, "users", username);
             const userSnap = await getDoc(userRef);
 
             if (username === "abdullah") {
                 const pw = passIn.value.trim();
-                if (!pw) {
-                    return;
-                }
-                
+                if (!pw) { document.getElementById('login-msg').innerText = "Password required."; return; }
                 if (userSnap.exists() && userSnap.data().password) {
-                    if (userSnap.data().password !== pw) {
-                        document.getElementById('login-msg').innerText = "Access Denied: Wrong Password";
-                        return;
-                    }
+                    if (userSnap.data().password !== pw) { document.getElementById('login-msg').innerText = "Access Denied: Wrong Password"; return; }
                     currentUser = { id: username, ...userSnap.data() };
                 } else {
-                    currentUser = { id: username, points: 0, unlockedThemes: ["bg-default"], password: pw, isAdmin: true };
+                    currentUser = { id: username, points: 0, unlockedThemes: ["bg-default"], password: pw, isAdmin: true, level: 1, xp: 0, rankPoints: 0, powerups: {} };
                     await setDoc(userRef, currentUser);
                 }
                 isAdmin = true;
             } else {
                 if (userSnap.exists()) {
-                    currentUser = { id: username, ...userSnap.data() };
+                    const userData = userSnap.data();
+                    if (userData.password) {
+                        const pw = passIn.value.trim();
+                        if (!pw) { document.getElementById('login-msg').innerText = "Password required."; return; }
+                        if (userData.password !== pw) { document.getElementById('login-msg').innerText = "Incorrect password."; return; }
+                    }
+                    currentUser = { id: username, ...userData };
                 } else {
-                    currentUser = { id: username, points: 0, unlockedThemes: ["bg-default"], isAdmin: false };
+                    currentUser = { id: username, points: 0, unlockedThemes: ["bg-default"], isAdmin: false, level: 1, xp: 0, rankPoints: 0, powerups: {} };
                     await setDoc(userRef, currentUser);
                 }
+                isAdmin = currentUser.isAdmin || false;
             }
 
-            // Exclusive Secret Theme Check
-            if (["marina", "layla"].includes(username)) {
-                document.getElementById('secret-btn').classList.remove('hidden');
-                if(!currentUser.unlockedThemes.includes("bg-secret")) {
-                    currentUser.unlockedThemes.push("bg-secret");
-                }
-            }
+            if (!currentUser.unlockedThemes) currentUser.unlockedThemes = ["bg-default"];
+            if (!currentUser.level) currentUser.level = 1;
+            if (!currentUser.xp) currentUser.xp = 0;
+            if (!currentUser.rankPoints) currentUser.rankPoints = 0;
+            if (!currentUser.powerups) currentUser.powerups = {};
 
+            if (["marina", "layla"].includes(username) && !currentUser.unlockedThemes.includes("bg-secret")) {
+                currentUser.unlockedThemes.push("bg-secret");
+                await updateDoc(userRef, { unlockedThemes: currentUser.unlockedThemes });
+            }
+            if (currentUser.preferredVoice) {
+                selectedVoiceURI = currentUser.preferredVoice;
+                if (voiceSelect) voiceSelect.value = selectedVoiceURI;
+            }
             setupApp();
         });
 
+        document.getElementById('manage-password-btn').addEventListener('click', () => {
+            if (!currentUser) { alert("Login first"); return; }
+            modal.classList.remove('hidden');
+        });
+        document.getElementById('cancel-pw-btn').addEventListener('click', () => modal.classList.add('hidden'));
+        document.getElementById('save-pw-btn').addEventListener('click', async () => {
+            const cur = document.getElementById('current-pw').value;
+            const newPw = document.getElementById('new-pw').value;
+            const conf = document.getElementById('confirm-pw').value;
+            const msg = document.getElementById('pw-modal-msg');
+            if (currentUser.password && cur !== currentUser.password) {
+                msg.innerText = "Current password incorrect"; return;
+            }
+            if (newPw !== conf) { msg.innerText = "Passwords do not match"; return; }
+            await updateDoc(doc(db, "users", currentUser.id), { password: newPw || null });
+            currentUser.password = newPw || null;
+            msg.innerText = "Password updated!";
+            setTimeout(() => modal.classList.add('hidden'), 1500);
+        });
+
+        // ================== APP SETUP ==================
         function setupApp() {
             loginScreen.classList.add('hidden');
             appScreen.classList.remove('hidden');
             
             document.getElementById('welcome-text').innerText = "Hello, " + currentUser.id.charAt(0).toUpperCase() + currentUser.id.slice(1);
-            document.getElementById('points-display').innerText = currentUser.points || 0;
-            
+            updateStats();
+
             if (isAdmin) {
                 document.getElementById('admin-panel').classList.remove('hidden');
                 document.getElementById('role-badge').innerText = "MASTER ADMIN";
                 refreshAdminWords();
+            } else {
+                document.getElementById('admin-panel').classList.add('hidden');
+                document.getElementById('role-badge').innerText = "STUDENT";
             }
-            
+
+            if (currentUser.level >= 15) document.getElementById('challenge-tab').disabled = false;
+            if (currentUser.level >= 30) document.getElementById('ranked-tab').disabled = false;
+            if (currentUser.level >= 50) document.getElementById('live-tab').disabled = false;
+            if (currentUser.level >= 100) document.getElementById('powerups-section').classList.remove('hidden');
+
+            renderShop();
             fetchWords();
-            setupLeaderboard();
+            setupLeaderboards();
+            setupTabs();
         }
 
+        function updateStats() {
+            document.getElementById('points-display').innerText = currentUser.points || 0;
+            document.getElementById('level-display').innerText = currentUser.level;
+            const nextXP = xpForLevel(currentUser.level);
+            document.getElementById('xp-display').innerText = `${currentUser.xp || 0}/${nextXP}`;
+            document.getElementById('rp-display').innerText = currentUser.rankPoints || 0;
+        }
+
+        async function addXP(amount) {
+            currentUser.xp += amount;
+            let leveled = false;
+            while (currentUser.xp >= xpForLevel(currentUser.level)) {
+                currentUser.xp -= xpForLevel(currentUser.level);
+                currentUser.level++;
+                leveled = true;
+            }
+            if (leveled) {
+                if (currentUser.level === 15) document.getElementById('challenge-tab').disabled = false;
+                if (currentUser.level === 30) document.getElementById('ranked-tab').disabled = false;
+                if (currentUser.level === 50) document.getElementById('live-tab').disabled = false;
+                if (currentUser.level === 100) document.getElementById('powerups-section').classList.remove('hidden');
+            }
+            await updateDoc(doc(db, "users", currentUser.id), { xp: currentUser.xp, level: currentUser.level });
+            updateStats();
+        }
+
+        // ================== CLASSIC MODE ==================
         async function fetchWords() {
             const snapshot = await getDocs(collection(db, "words"));
             wordsList = snapshot.docs.map(doc => doc.data().word);
             wordDeck = [...wordsList]; 
             updateDeckInfo();
         }
-
         function updateDeckInfo() {
             const info = document.getElementById('deck-info');
-            if (wordsList.length === 0) {
-                info.innerText = "No words in arena database.";
-            } else {
-                info.innerText = `${wordDeck.length} words remaining in current cycle`;
-            }
+            info.innerText = wordsList.length ? `${wordDeck.length} words remaining` : "No words";
         }
 
-        // --- SMART DECK LOGIC: NO REPEATS ---
         document.getElementById('play-word-btn').addEventListener('click', () => {
-            if (!wordsList.length) { 
-                document.getElementById('game-msg').innerText = "Database is empty!"; 
-                return; 
+            if (!wordsList.length) { document.getElementById('game-msg').innerText = "Database is empty!"; return; }
+            if (!currentWord) {
+                if (wordDeck.length === 0) wordDeck = [...wordsList];
+                const rand = Math.floor(Math.random() * wordDeck.length);
+                currentWord = wordDeck.splice(rand, 1)[0];
             }
-            
-            if (wordDeck.length === 0) {
-                wordDeck = [...wordsList]; // Refill deck
-                document.getElementById('game-msg').innerText = "♻️ Word pool reshuffled!";
-                document.getElementById('game-msg').style.color = "var(--secondary)";
-            }
-
-            const randomIndex = Math.floor(Math.random() * wordDeck.length);
-            currentWord = wordDeck.splice(randomIndex, 1)[0]; // Pull word out of deck
-            
-            const utter = new SpeechSynthesisUtterance(currentWord);
-            utter.rate = 0.8;
-            window.speechSynthesis.speak(utter);
-            
-            if (document.getElementById('game-msg').innerText.includes("reshuffled") === false) {
-                document.getElementById('game-msg').innerText = "Listening...";
-                document.getElementById('game-msg').style.color = "white";
-            }
-            
+            speakWord(currentWord);
+            document.getElementById('game-msg').innerText = "Listening...";
             updateDeckInfo();
         });
 
@@ -477,44 +683,290 @@
             const input = document.getElementById('spell-input');
             const attempt = input.value.trim().toLowerCase();
             const msg = document.getElementById('game-msg');
+            if (!currentWord) { msg.innerText = "Hear a word first!"; return; }
+            if (attempt === currentWord) {
+                const diff = analyzeWordDifficulty(currentWord);
+                const xpGain = xpForDifficulty(diff);
+                const pointsGain = 10;
+                currentUser.points += pointsGain;
+                await addXP(xpGain);
+                await updateDoc(doc(db, "users", currentUser.id), { points: currentUser.points });
+                msg.innerText = `🔥 Correct! +${pointsGain} pts, +${xpGain} XP`;
+                input.value = "";
+                currentWord = "";
 
-            if (!currentWord) {
+                // Congrats animation
+                correctCount++;
+                if (congratsEnabled && correctCount % 5 === 0) {
+                    document.getElementById('game-msg').classList.add('congrats-animation');
+                    setTimeout(() => document.getElementById('game-msg').classList.remove('congrats-animation'), 500);
+                }
+            } else {
+                msg.innerText = "❌ Incorrect. Try again!";
+            }
+            updateStats();
+        });
+
+        document.getElementById('skip-word-btn').addEventListener('click', async () => {
+            if (!currentWord) { document.getElementById('game-msg').innerText = "No word to skip."; return; }
+            if (currentUser.points < 10) { document.getElementById('game-msg').innerText = "Not enough points (need 10)."; return; }
+            currentUser.points -= 10;
+            await updateDoc(doc(db, "users", currentUser.id), { points: currentUser.points });
+            currentWord = "";
+            document.getElementById('game-msg').innerText = "⏩ Skipped! -10 points";
+            document.getElementById('spell-input').value = "";
+            updateStats();
+        });
+
+        // ================== TIME CHALLENGE ==================
+        const challengeMode = document.getElementById('challenge-mode');
+        const classicMode = document.getElementById('classic-mode');
+        const rankedMode = document.getElementById('ranked-mode');
+        const liveMode = document.getElementById('live-mode');
+        const timerDisplay = document.getElementById('timer-display');
+        const challengeSpell = document.getElementById('challenge-spell');
+        const submitChallenge = document.getElementById('submit-challenge-btn');
+        const startChallenge = document.getElementById('start-challenge-btn');
+        const challengeMsg = document.getElementById('challenge-msg');
+        const challengeWordNum = document.getElementById('challenge-word-num');
+
+        startChallenge.addEventListener('click', () => {
+            if (wordsList.length < 5) { challengeMsg.innerText = "Need at least 5 words!"; return; }
+            challengeWords = [...wordsList].sort(() => 0.5 - Math.random()).slice(0,5);
+            challengeIndex = 0;
+            challengeActive = true;
+            startChallenge.disabled = true;
+            challengeSpell.disabled = false;
+            submitChallenge.disabled = false;
+            challengeSpell.value = "";
+            challengeMsg.innerText = "";
+            nextChallengeWord();
+        });
+
+        function nextChallengeWord() {
+            if (challengeIndex >= challengeWords.length) {
+                endChallenge(true);
                 return;
             }
+            currentWord = challengeWords[challengeIndex];
+            speakWord(currentWord);
+            challengeWordNum.innerText = challengeIndex+1;
+            challengeTimeLeft = 15;
+            timerDisplay.innerText = challengeTimeLeft + 's';
+            if (challengeTimer) clearInterval(challengeTimer);
+            challengeTimer = setInterval(() => {
+                challengeTimeLeft--;
+                timerDisplay.innerText = challengeTimeLeft + 's';
+                if (challengeTimeLeft <= 0) {
+                    clearInterval(challengeTimer);
+                    challengeIndex++;
+                    if (challengeIndex < challengeWords.length) nextChallengeWord();
+                    else endChallenge(false);
+                }
+            }, 1000);
+        }
 
+        submitChallenge.addEventListener('click', async () => {
+            const attempt = challengeSpell.value.trim().toLowerCase();
             if (attempt === currentWord) {
-                currentUser.points = (currentUser.points || 0) + 10;
-                document.getElementById('points-display').innerText = currentUser.points;
-                
-                msg.innerText = "🔥 Correct! +10 Points";
-                msg.style.color = "var(--success)";
-                
+                clearInterval(challengeTimer);
+                const timeBonus = Math.max(0, challengeTimeLeft);
+                const diff = analyzeWordDifficulty(currentWord);
+                const pointsEarned = Math.min(20, Math.max(5, diff * 5 + Math.floor(timeBonus/3)));
+                const xpEarned = diff * 5 + timeBonus;
+                currentUser.points += pointsEarned;
+                await addXP(xpEarned);
                 await updateDoc(doc(db, "users", currentUser.id), { points: currentUser.points });
-                
-                input.value = "";
-                currentWord = ""; 
+                challengeMsg.innerText = `✅ +${pointsEarned} pts, +${xpEarned} XP!`;
+                challengeIndex++;
+                challengeSpell.value = "";
+                if (challengeIndex < challengeWords.length) nextChallengeWord();
+                else endChallenge(true);
             } else {
-                msg.innerText = "❌ Incorrect. Try hearing it again!";
-                msg.style.color = "var(--danger)";
+                challengeMsg.innerText = "❌ Wrong, try again!";
             }
         });
 
-        // --- ADMIN STRENGTHS ---
+        function endChallenge(completed) {
+            if (challengeTimer) clearInterval(challengeTimer);
+            challengeActive = false;
+            startChallenge.disabled = false;
+            challengeSpell.disabled = true;
+            submitChallenge.disabled = true;
+            if (completed) challengeMsg.innerText = "🎉 Challenge complete!";
+            else challengeMsg.innerText = "⏰ Time's up!";
+        }
+
+        // ================== RANKED MODE ==================
+        const rankedSpell = document.getElementById('ranked-spell');
+        const submitRanked = document.getElementById('submit-ranked-btn');
+        const playRanked = document.getElementById('play-ranked-btn');
+        const rankedMsg = document.getElementById('ranked-msg');
+        const rankPointsSpan = document.getElementById('rank-points');
+        const difficultyMult = document.getElementById('difficulty-mult');
+
+        playRanked.addEventListener('click', () => {
+            if (!wordsList.length) { rankedMsg.innerText = "No words!"; return; }
+            if (!currentWord) {
+                if (wordDeck.length === 0) wordDeck = [...wordsList];
+                const rand = Math.floor(Math.random() * wordDeck.length);
+                currentWord = wordDeck.splice(rand, 1)[0];
+            }
+            speakWord(currentWord);
+            const diff = analyzeWordDifficulty(currentWord);
+            rankedMultiplier = diff * 0.5; // 0.5,1.0,1.5
+            difficultyMult.innerText = rankedMultiplier.toFixed(1) + 'x';
+        });
+
+        submitRanked.addEventListener('click', async () => {
+            const attempt = rankedSpell.value.trim().toLowerCase();
+            if (!currentWord) { rankedMsg.innerText = "Hear a word first!"; return; }
+            if (attempt === currentWord) {
+                const diff = analyzeWordDifficulty(currentWord);
+                const rpGain = Math.floor(10 * rankedMultiplier);
+                const xpGain = diff * 5;
+                currentUser.rankPoints += rpGain;
+                currentUser.points += 10;
+                await addXP(xpGain);
+                await updateDoc(doc(db, "users", currentUser.id), { rankPoints: currentUser.rankPoints, points: currentUser.points });
+                rankedMsg.innerText = `✅ +${rpGain} RP, +10 pts, +${xpGain} XP`;
+                rankPointsSpan.innerText = currentUser.rankPoints;
+                rankedSpell.value = "";
+                currentWord = "";
+            } else {
+                const loss = 5;
+                currentUser.rankPoints = Math.max(0, currentUser.rankPoints - loss);
+                await updateDoc(doc(db, "users", currentUser.id), { rankPoints: currentUser.rankPoints });
+                rankedMsg.innerText = `❌ Incorrect! -${loss} RP`;
+                rankPointsSpan.innerText = currentUser.rankPoints;
+            }
+        });
+
+        // ================== LIVE MODE (placeholder) ==================
+        document.getElementById('find-match-btn').addEventListener('click', () => {
+            document.getElementById('live-msg').innerText = "Live play coming soon!";
+        });
+
+        // ================== TABS ==================
+        function setupTabs() {
+            const tabs = document.querySelectorAll('.tab[data-mode]');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    if (tab.disabled) return;
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    currentMode = tab.dataset.mode;
+                    classicMode.classList.add('hidden');
+                    challengeMode.classList.add('hidden');
+                    rankedMode.classList.add('hidden');
+                    liveMode.classList.add('hidden');
+                    if (currentMode === 'classic') classicMode.classList.remove('hidden');
+                    else if (currentMode === 'challenge') challengeMode.classList.remove('hidden');
+                    else if (currentMode === 'ranked') rankedMode.classList.remove('hidden');
+                    else if (currentMode === 'live') liveMode.classList.remove('hidden');
+                });
+            });
+        }
+
+        // ================== LEADERBOARDS ==================
+        function setupLeaderboards() {
+            // Score leaderboard
+            const scoreQ = query(collection(db, "users"), orderBy("points", "desc"), limit(10));
+            onSnapshot(scoreQ, (snap) => {
+                const body = document.getElementById('scoreboard-body');
+                body.innerHTML = "";
+                snap.forEach(u => {
+                    const data = u.data();
+                    body.innerHTML += `<tr><td>${u.id}${data.isAdmin?' ⭐':''}</td><td style="text-align:right;">${data.points || 0}</td></tr>`;
+                });
+            });
+
+            // Level leaderboard - fixed: order by level only, then sort client-side
+            const levelQ = query(collection(db, "users"), orderBy("level", "desc"), limit(20));
+            onSnapshot(levelQ, (snap) => {
+                const users = [];
+                snap.forEach(u => {
+                    users.push({ id: u.id, ...u.data() });
+                });
+                // Sort by level desc, then xp desc
+                users.sort((a, b) => {
+                    if (a.level !== b.level) return b.level - a.level;
+                    return (b.xp || 0) - (a.xp || 0);
+                });
+                const body = document.getElementById('levelboard-body');
+                body.innerHTML = "";
+                users.slice(0, 10).forEach(u => {
+                    body.innerHTML += `<tr><td>${u.id}</td><td style="text-align:right;">Lv ${u.level || 1}</td><td style="text-align:right;">${u.xp || 0} XP</td></tr>`;
+                });
+            });
+
+            // Rank leaderboard
+            const rankQ = query(collection(db, "users"), orderBy("rankPoints", "desc"), limit(10));
+            onSnapshot(rankQ, (snap) => {
+                const body = document.getElementById('rankboard-body');
+                body.innerHTML = "";
+                snap.forEach(u => {
+                    const data = u.data();
+                    body.innerHTML += `<tr><td>${u.id}</td><td style="text-align:right;">${data.rankPoints || 0} RP</td></tr>`;
+                });
+            });
+
+            document.querySelectorAll('[data-leaderboard]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('[data-leaderboard]').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    document.getElementById('score-leaderboard').classList.add('hidden');
+                    document.getElementById('level-leaderboard').classList.add('hidden');
+                    document.getElementById('rank-leaderboard').classList.add('hidden');
+                    if (btn.dataset.leaderboard === 'score') document.getElementById('score-leaderboard').classList.remove('hidden');
+                    if (btn.dataset.leaderboard === 'level') document.getElementById('level-leaderboard').classList.remove('hidden');
+                    if (btn.dataset.leaderboard === 'rank') document.getElementById('rank-leaderboard').classList.remove('hidden');
+                });
+            });
+        }
+
+        // ================== ADMIN: DELETE ACCOUNT / LEADERBOARD REMOVAL ==================
+        document.getElementById('delete-account-btn').addEventListener('click', async () => {
+            if (!isAdmin) { document.getElementById('delete-msg').innerText = "Admins only"; return; }
+            const target = document.getElementById('delete-target').value.trim().toLowerCase();
+            if (!target) return;
+            if (confirm(`Delete user ${target}?`)) {
+                await deleteDoc(doc(db, "users", target));
+                document.getElementById('delete-msg').innerText = "Deleted";
+            }
+        });
+
+        document.getElementById('remove-from-scoreboard-btn').addEventListener('click', async () => {
+            if (!isAdmin) return;
+            const target = document.getElementById('lb-username').value.trim().toLowerCase();
+            if (!target) return;
+            await updateDoc(doc(db, "users", target), { points: 0 });
+            alert('Score reset');
+        });
+
+        document.getElementById('remove-from-rankboard-btn').addEventListener('click', async () => {
+            if (!isAdmin) return;
+            const target = document.getElementById('lb-username').value.trim().toLowerCase();
+            if (!target) return;
+            await updateDoc(doc(db, "users", target), { rankPoints: 0 });
+            alert('Rank points reset');
+        });
+
+        // ================== ADMIN PANEL ==================
         document.getElementById('toggle-word-list-btn').addEventListener('click', () => {
             const list = document.getElementById('word-list-admin');
             const quiz = document.getElementById('quiz-area');
             const btn = document.getElementById('toggle-word-list-btn');
-
             if (list.classList.contains('hidden')) {
                 list.classList.remove('hidden');
                 quiz.style.opacity = "0.2";
-                quiz.querySelectorAll('button, input').forEach(el => el.disabled = true);
+                quiz.querySelectorAll('button, input, select').forEach(el => el.disabled = true);
                 btn.innerText = "🙈 Hide Data (Unlock Quiz)";
                 refreshAdminWords();
             } else {
                 list.classList.add('hidden');
                 quiz.style.opacity = "1";
-                quiz.querySelectorAll('button, input').forEach(el => el.disabled = false);
+                quiz.querySelectorAll('button, input, select').forEach(el => el.disabled = false);
                 btn.innerText = "👁️ Manage Database (Quiz Lock)";
             }
         });
@@ -523,26 +975,22 @@
             const snap = await getDocs(collection(db, "words"));
             const div = document.getElementById('word-list-admin');
             div.innerHTML = "";
-            
             snap.forEach(d => {
                 const item = document.createElement('div');
-                item.style = "display:flex; justify-content:space-between; align-items:center; padding:12px; background:rgba(0,0,0,0.3); border-radius:12px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.05);";
+                item.style = "display:flex; justify-content:space-between; align-items:center; padding:12px; background:rgba(0,0,0,0.3); border-radius:12px; margin-bottom:8px;";
                 item.innerHTML = `<span>${d.data().word}</span><button style="padding:6px 12px; font-size:0.7rem; background:var(--danger)" onclick="deleteWord('${d.id}')">Delete</button>`;
                 div.appendChild(item);
             });
         }
-
         window.deleteWord = async (id) => {
-            if(confirm("Permanently delete this word?")) {
+            if(confirm("Delete?")) {
                 await deleteDoc(doc(db, "words", id));
                 refreshAdminWords();
                 fetchWords();
             }
         };
-
         document.getElementById('add-word-btn').addEventListener('click', async () => {
             const val = document.getElementById('new-word-input').value.trim().toLowerCase();
-            
             if (val) {
                 await addDoc(collection(db, "words"), { word: val });
                 document.getElementById('new-word-input').value = "";
@@ -551,44 +999,80 @@
             }
         });
 
-        // --- LEADERBOARD & SHOP ---
-        function setupLeaderboard() {
-            const q = query(collection(db, "users"), orderBy("points", "desc"), limit(5));
-            onSnapshot(q, (snap) => {
-                const body = document.getElementById('leaderboard-body');
-                body.innerHTML = "";
-                
-                snap.forEach(u => {
-                    const data = u.data();
-                    body.innerHTML += `<tr><td>${u.id}${data.isAdmin ? ' ⭐' : ''}</td><td style="text-align:right; font-weight:900;">${data.points || 0}</td></tr>`;
-                });
-            });
-        }
-
-        document.querySelectorAll('.buy-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                const t = e.target.dataset.theme;
-                const cost = parseInt(e.target.dataset.cost);
-                
-                if (currentUser.unlockedThemes.includes(t)) {
-                    document.getElementById('main-body').className = t;
-                } else if (currentUser.points >= cost) {
-                    currentUser.points -= cost;
-                    currentUser.unlockedThemes.push(t);
-                    
-                    document.getElementById('points-display').innerText = currentUser.points;
-                    document.getElementById('main-body').className = t;
-                    
-                    await updateDoc(doc(db, "users", currentUser.id), { 
-                        points: currentUser.points, 
-                        unlockedThemes: currentUser.unlockedThemes 
-                    });
-                } else { 
-                    alert("Victory requires more points! Keep spelling."); 
+        // Admin role management
+        document.getElementById("make-admin-btn").addEventListener("click", async () => {
+            const username = document.getElementById("admin-target").value.trim().toLowerCase();
+            const password = document.getElementById("admin-password").value.trim();
+            const msg = document.getElementById("admin-msg");
+            if(!username) { msg.innerText = "Enter username."; return; }
+            if(!password) { msg.innerText = "Password required."; return; }
+            try{
+                const userRef = doc(db, "users", username);
+                const userSnap = await getDoc(userRef);
+                if (userSnap.exists()) {
+                    await updateDoc(userRef, { isAdmin: true, password: password });
+                } else {
+                    await setDoc(userRef, { points:0, unlockedThemes:["bg-default"], isAdmin:true, password:password, level:1, xp:0, rankPoints:0 });
                 }
-            });
+                msg.innerText = username + " is now Admin.";
+                msg.style.color = "var(--success)";
+            } catch(e){ msg.innerText = "Error: " + e.message; }
+        });
+        document.getElementById("remove-admin-btn").addEventListener("click", async () => {
+            const username = document.getElementById("admin-target").value.trim().toLowerCase();
+            const msg = document.getElementById("admin-msg");
+            if(!username) return;
+            await updateDoc(doc(db, "users", username), { isAdmin: false });
+            msg.innerText = username + " is no longer Admin.";
         });
 
+        // ================== THEMES SHOP ==================
+        const allThemes = [
+            { className: 'bg-default', name: 'Default', cost: 0 },
+            { className: 'bg-chess', name: 'Chess', cost: 20 },
+            { className: 'bg-roblox', name: 'Roblox', cost: 40 },
+            { className: 'bg-fortnite', name: 'Fortnite', cost: 60 },
+            { className: 'bg-galaxy', name: 'Galaxy', cost: 100 },
+            { className: 'bg-secret', name: 'Lilly Love Braids', cost: 0, secret: true },
+            { className: 'bg-midnight', name: 'Midnight', cost: 30 },
+            { className: 'bg-sunset', name: 'Sunset', cost: 30 },
+            { className: 'bg-forest', name: 'Forest', cost: 35 },
+            { className: 'bg-oceandeep', name: 'Ocean Deep', cost: 45 },
+            { className: 'bg-cyber', name: 'Neon Cyber', cost: 55 },
+            { className: 'bg-pastel', name: 'Pastel', cost: 25 },
+            { className: 'bg-dark', name: 'Dark Mode', cost: 15 },
+            { className: 'bg-light', name: 'Light Mode', cost: 15 },
+            { className: 'bg-candy', name: 'Candy Land', cost: 40 },
+            { className: 'bg-lavender', name: 'Lavender', cost: 30 }
+        ];
+        function renderShop() {
+            const grid = document.getElementById('themes-grid');
+            grid.innerHTML = '';
+            allThemes.forEach(theme => {
+                if (theme.secret && !currentUser.unlockedThemes.includes(theme.className)) return;
+                const btn = document.createElement('button');
+                btn.className = 'buy-btn';
+                btn.dataset.theme = theme.className;
+                btn.dataset.cost = theme.cost;
+                btn.textContent = `${theme.name} (${theme.cost})`;
+                if (currentUser.unlockedThemes.includes(theme.className)) btn.style.background = 'var(--success)';
+                btn.addEventListener('click', async (e) => {
+                    const t = e.target.dataset.theme;
+                    const cost = parseInt(e.target.dataset.cost);
+                    if (currentUser.unlockedThemes.includes(t)) {
+                        document.getElementById('main-body').className = t;
+                    } else if (currentUser.points >= cost) {
+                        currentUser.points -= cost;
+                        currentUser.unlockedThemes.push(t);
+                        document.getElementById('points-display').innerText = currentUser.points;
+                        document.getElementById('main-body').className = t;
+                        await updateDoc(doc(db, "users", currentUser.id), { points: currentUser.points, unlockedThemes: currentUser.unlockedThemes });
+                        renderShop();
+                    } else { alert("Not enough points!"); }
+                });
+                grid.appendChild(btn);
+            });
+        }
     </script>
 </body>
 </html>
