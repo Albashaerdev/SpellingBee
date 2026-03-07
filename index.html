@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-88">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes">
-    <title>Spelling Bee Pro | Level Up Faster!</title>
+    <title>Spelling Bee Pro | Streak 🔥</title>
     <style>
         :root {
             --primary: #6366f1;
@@ -42,6 +42,23 @@
         .bg-light { background: #f5f5f5; color: #1e1e1e; }
         .bg-candy { background: repeating-linear-gradient(45deg, #ffb6c1, #ffb6c1 20px, #ffe4e1 20px, #ffe4e1 40px); color: #8b4513; }
         .bg-lavender { background: linear-gradient(145deg, #e6e6fa, #d8bfd8); color: #2d2d4a; }
+        /* New streak theme */
+        .bg-streak10 { 
+            background: linear-gradient(135deg, #ff4e00, #ec9f05, #fbb034);
+            color: #2d1b0e;
+            text-shadow: 0 2px 5px #fff8e7;
+            position: relative;
+        }
+        .bg-streak10::after {
+            content: "🔥";
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 100px;
+            opacity: 0.2;
+            transform: rotate(-10deg);
+            pointer-events: none;
+        }
 
         body { margin: 0; padding: 15px; transition: background 0.6s ease, color 0.6s ease; min-height: 100vh; display: flex; justify-content: center; align-items: flex-start; font-size: 16px; }
         .container { width: 100%; max-width: 900px; background: var(--glass); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); padding: 20px; border-radius: 32px; border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5); animation: fadeIn 0.4s ease-out; }
@@ -54,11 +71,49 @@
         .stat-label { font-size: 0.75rem; opacity: 0.7; }
         .stat-value { font-size: 1.3rem; font-weight: 700; color: var(--success); }
 
-        input, select, button { font-size: 1rem; padding: 14px 18px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.4); color: white; outline: none; transition: all 0.3s; }
+        /* Streak display */
+        .streak-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0,0,0,0.3);
+            padding: 8px 20px;
+            border-radius: 40px;
+        }
+        .streak-fire {
+            font-size: 2rem;
+            filter: drop-shadow(0 0 5px orange);
+        }
+        .streak-count {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #ffaa00;
+        }
+        .streak-label {
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+        .daily-progress {
+            margin-top: 5px;
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .daily-progress-fill {
+            height: 100%;
+            background: #ffaa00;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        input, select, button, .file-label { font-size: 1rem; padding: 14px 18px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.4); color: white; outline: none; transition: all 0.3s; }
         input:focus, select:focus { border-color: var(--primary); background: rgba(0,0,0,0.6); }
-        button { background: var(--primary); cursor: pointer; font-weight: 700; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: none; min-width: 48px; min-height: 48px; }
-        button:active { transform: scale(0.96); }
+        button, .file-label { background: var(--primary); cursor: pointer; font-weight: 700; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: none; min-width: 48px; min-height: 48px; display: inline-block; text-align: center; }
+        button:active, .file-label:active { transform: scale(0.96); }
         button:disabled { opacity: 0.3; cursor: not-allowed; }
+        .file-label { background: var(--info); }
 
         .big-btn { width: 100%; font-size: 1.3rem; background: var(--success); margin-bottom: 10px; padding: 18px; box-shadow: 0 8px 20px rgba(34, 197, 94, 0.3); }
         .action-row { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
@@ -92,7 +147,6 @@
         .powerup-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 10px 0; }
         .powerup-card { background: rgba(255,255,255,0.1); padding: 10px; border-radius: 16px; text-align: center; }
 
-        /* Animation for congrats */
         .congrats-animation {
             animation: bounce 0.5s ease;
         }
@@ -171,7 +225,6 @@
             </div>
 
             <button id="login-btn" style="margin-top: 10px;">Join Match</button>
-            <button id="manage-password-btn" style="background:var(--info);">🔐 Manage Password</button>
         </div>
         <p id="login-msg" class="msg" style="color: var(--danger);"></p>
     </div>
@@ -202,6 +255,29 @@
             </div>
         </header>
 
+        <!-- Streak Section -->
+        <section style="padding: 15px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
+                <div class="streak-container">
+                    <span class="streak-fire" id="streak-fire">🔥</span>
+                    <div>
+                        <span class="streak-count" id="streak-count">0</span>
+                        <span class="streak-label">day streak</span>
+                    </div>
+                </div>
+                <div style="flex: 1; min-width: 150px;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Today's words</span>
+                        <span id="daily-words-count">0/5</span>
+                    </div>
+                    <div class="daily-progress">
+                        <div class="daily-progress-fill" id="daily-progress-fill" style="width:0%"></div>
+                    </div>
+                </div>
+                <button id="recover-streak-btn" style="background:var(--warning); display: none;">🔥 Recover (50 pts)</button>
+            </div>
+        </section>
+
         <!-- Settings Panel -->
         <section>
             <h3 class="section-title">⚙️ Settings</h3>
@@ -211,6 +287,7 @@
                     <span class="slider"></span>
                 </label>
                 <span>🎉 Congrats Animation (every 5 correct)</span>
+                <button id="manage-password-btn" style="background:var(--info); margin-left: auto;">🔐 Change Password</button>
             </div>
         </section>
 
@@ -220,6 +297,13 @@
             <div style="display:flex; gap:10px; margin-bottom: 15px; flex-wrap: wrap;">
                 <input type="text" id="new-word-input" placeholder="New Vocabulary Word" style="flex:2;">
                 <button id="add-word-btn" style="background:var(--secondary); flex:1;">Add</button>
+            </div>
+
+            <!-- File Upload -->
+            <div style="margin-bottom: 15px;">
+                <label for="word-file" class="file-label">📂 Upload .txt File (one word per line)</label>
+                <input type="file" id="word-file" accept=".txt" style="display:none;">
+                <p id="upload-status" class="msg" style="font-size:0.9rem;"></p>
             </div>
 
             <button id="toggle-word-list-btn" style="width:100%; background:rgba(255,255,255,0.1); font-size: 0.95rem; border: 1px solid rgba(255,255,255,0.2); margin-bottom: 15px;">
@@ -405,6 +489,10 @@
         let congratsEnabled = true;
         let correctCount = 0; // for animation
 
+        // Streak
+        let dailyWords = 0;
+        const DAILY_GOAL = 5;
+
         // --- FAST LEVELING ---
         function xpForLevel(level) {
             return 30 + (level - 1) * 5;
@@ -461,10 +549,150 @@
         const voiceSelect = document.getElementById('voice-select');
         const modal = document.getElementById('password-modal');
         const congratsToggle = document.getElementById('congrats-toggle');
+        const streakCountSpan = document.getElementById('streak-count');
+        const dailyWordsSpan = document.getElementById('daily-words-count');
+        const progressFill = document.getElementById('daily-progress-fill');
+        const recoverBtn = document.getElementById('recover-streak-btn');
 
         congratsToggle.addEventListener('change', () => {
             congratsEnabled = congratsToggle.checked;
         });
+
+        // ================== STREAK FUNCTIONS ==================
+        function getTodayDate() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+
+        async function checkStreakOnLogin() {
+            const today = getTodayDate();
+            const lastLogin = currentUser.lastLogin || '';
+            const lastStreak = currentUser.streak || 0;
+            const daily = currentUser.dailyWords || 0;
+            
+            if (lastLogin === today) {
+                // Already logged in today, just restore counts
+                dailyWords = daily;
+            } else {
+                // New day
+                if (lastLogin === getYesterday()) {
+                    // Consecutive day
+                    if (daily >= DAILY_GOAL) {
+                        // They completed yesterday, streak continues
+                        currentUser.streak = lastStreak + 1;
+                    } else {
+                        // Didn't complete yesterday, streak resets
+                        currentUser.streak = 0;
+                    }
+                } else {
+                    // Missed at least one day
+                    currentUser.streak = 0;
+                }
+                dailyWords = 0;
+                currentUser.dailyWords = 0;
+                currentUser.lastLogin = today;
+                await updateDoc(doc(db, "users", currentUser.id), { 
+                    streak: currentUser.streak,
+                    dailyWords: 0,
+                    lastLogin: today
+                });
+            }
+
+            // Check for streak theme unlock
+            if (currentUser.streak >= 10 && !currentUser.unlockedThemes.includes('bg-streak10')) {
+                currentUser.unlockedThemes.push('bg-streak10');
+                await updateDoc(doc(db, "users", currentUser.id), { unlockedThemes: currentUser.unlockedThemes });
+                renderShop();
+            }
+
+            updateStreakUI();
+            checkNotification();
+        }
+
+        function getYesterday() {
+            const d = new Date();
+            d.setDate(d.getDate() - 1);
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+
+        async function incrementDailyWords() {
+            if (dailyWords >= DAILY_GOAL) return; // already done today
+            
+            dailyWords++;
+            currentUser.dailyWords = dailyWords;
+            await updateDoc(doc(db, "users", currentUser.id), { dailyWords });
+            
+            if (dailyWords === DAILY_GOAL) {
+                // Completed today's goal -> increase streak
+                currentUser.streak = (currentUser.streak || 0) + 1;
+                await updateDoc(doc(db, "users", currentUser.id), { streak: currentUser.streak });
+                
+                // Check for streak theme unlock
+                if (currentUser.streak >= 10 && !currentUser.unlockedThemes.includes('bg-streak10')) {
+                    currentUser.unlockedThemes.push('bg-streak10');
+                    await updateDoc(doc(db, "users", currentUser.id), { unlockedThemes: currentUser.unlockedThemes });
+                    renderShop();
+                }
+            }
+            updateStreakUI();
+        }
+
+        function updateStreakUI() {
+            streakCountSpan.innerText = currentUser.streak || 0;
+            dailyWordsSpan.innerText = `${dailyWords}/${DAILY_GOAL}`;
+            const percent = (dailyWords / DAILY_GOAL) * 100;
+            progressFill.style.width = percent + '%';
+            
+            // Change fire color based on streak
+            const fire = document.getElementById('streak-fire');
+            if (currentUser.streak >= 10) fire.style.color = '#ff5500';
+            else if (currentUser.streak >= 5) fire.style.color = '#ffaa00';
+            else fire.style.color = '#ffdd44';
+            
+            // Show recover button if streak=0 and dailyWords=0 and lastLogin is not today? Actually if streak=0 and dailyWords=0, maybe they missed yesterday
+            if (currentUser.streak === 0 && dailyWords === 0 && currentUser.lastLogin !== getTodayDate()) {
+                recoverBtn.style.display = 'inline-block';
+            } else {
+                recoverBtn.style.display = 'none';
+            }
+        }
+
+        async function recoverStreak() {
+            if (currentUser.points < 50) {
+                alert("Not enough points! Need 50.");
+                return;
+            }
+            currentUser.points -= 50;
+            currentUser.streak = 1;
+            dailyWords = 0;
+            currentUser.dailyWords = 0;
+            const today = getTodayDate();
+            currentUser.lastLogin = today;
+            await updateDoc(doc(db, "users", currentUser.id), { 
+                points: currentUser.points,
+                streak: 1,
+                dailyWords: 0,
+                lastLogin: today
+            });
+            updateStats();
+            updateStreakUI();
+        }
+        recoverBtn.addEventListener('click', recoverStreak);
+
+        // ================== NOTIFICATIONS ==================
+        function checkNotification() {
+            if (!("Notification" in window)) return;
+            if (Notification.permission === "granted") {
+                if (dailyWords < DAILY_GOAL) {
+                    new Notification("Spelling Bee", {
+                        body: `You haven't completed today's ${DAILY_GOAL} words yet! Keep your streak alive! 🔥`,
+                        icon: "https://img.icons8.com/color/48/000000/spell-check.png"
+                    });
+                }
+            } else if (Notification.permission !== "denied") {
+                Notification.requestPermission();
+            }
+        }
 
         // ================== VOICE ==================
         function populateVoices() {
@@ -508,7 +736,7 @@
             window.speechSynthesis.speak(utter);
         }
 
-        // ================== LOGIN / PASSWORD MANAGEMENT ==================
+        // ================== LOGIN ==================
         let usernameCheckTimeout;
         userIn.addEventListener('input', () => {
             clearTimeout(usernameCheckTimeout);
@@ -544,7 +772,7 @@
                     if (userSnap.data().password !== pw) { document.getElementById('login-msg').innerText = "Access Denied: Wrong Password"; return; }
                     currentUser = { id: username, ...userSnap.data() };
                 } else {
-                    currentUser = { id: username, points: 0, unlockedThemes: ["bg-default"], password: pw, isAdmin: true, level: 1, xp: 0, rankPoints: 0, powerups: {} };
+                    currentUser = { id: username, points: 0, unlockedThemes: ["bg-default"], password: pw, isAdmin: true, level: 1, xp: 0, rankPoints: 0, powerups: {}, streak: 0, dailyWords: 0, lastLogin: '' };
                     await setDoc(userRef, currentUser);
                 }
                 isAdmin = true;
@@ -558,17 +786,21 @@
                     }
                     currentUser = { id: username, ...userData };
                 } else {
-                    currentUser = { id: username, points: 0, unlockedThemes: ["bg-default"], isAdmin: false, level: 1, xp: 0, rankPoints: 0, powerups: {} };
+                    currentUser = { id: username, points: 0, unlockedThemes: ["bg-default"], isAdmin: false, level: 1, xp: 0, rankPoints: 0, powerups: {}, streak: 0, dailyWords: 0, lastLogin: '' };
                     await setDoc(userRef, currentUser);
                 }
                 isAdmin = currentUser.isAdmin || false;
             }
 
+            // Initialize missing fields
             if (!currentUser.unlockedThemes) currentUser.unlockedThemes = ["bg-default"];
             if (!currentUser.level) currentUser.level = 1;
             if (!currentUser.xp) currentUser.xp = 0;
             if (!currentUser.rankPoints) currentUser.rankPoints = 0;
             if (!currentUser.powerups) currentUser.powerups = {};
+            if (!currentUser.streak) currentUser.streak = 0;
+            if (!currentUser.dailyWords) currentUser.dailyWords = 0;
+            if (!currentUser.lastLogin) currentUser.lastLogin = '';
 
             if (["marina", "layla"].includes(username) && !currentUser.unlockedThemes.includes("bg-secret")) {
                 currentUser.unlockedThemes.push("bg-secret");
@@ -581,6 +813,7 @@
             setupApp();
         });
 
+        // ================== PASSWORD MANAGEMENT (Modal) ==================
         document.getElementById('manage-password-btn').addEventListener('click', () => {
             if (!currentUser) { alert("Login first"); return; }
             modal.classList.remove('hidden');
@@ -602,12 +835,15 @@
         });
 
         // ================== APP SETUP ==================
-        function setupApp() {
+        async function setupApp() {
             loginScreen.classList.add('hidden');
             appScreen.classList.remove('hidden');
             
             document.getElementById('welcome-text').innerText = "Hello, " + currentUser.id.charAt(0).toUpperCase() + currentUser.id.slice(1);
             updateStats();
+
+            // Check streak
+            await checkStreakOnLogin();
 
             if (isAdmin) {
                 document.getElementById('admin-panel').classList.remove('hidden');
@@ -637,6 +873,7 @@
             document.getElementById('rp-display').innerText = currentUser.rankPoints || 0;
         }
 
+        // FIXED: XP carries over excess after level-up
         async function addXP(amount) {
             currentUser.xp += amount;
             let leveled = false;
@@ -695,11 +932,13 @@
                 input.value = "";
                 currentWord = "";
 
-                // Congrats animation
+                // Streak increment (only counts classic mode)
+                await incrementDailyWords();
+
                 correctCount++;
                 if (congratsEnabled && correctCount % 5 === 0) {
-                    document.getElementById('game-msg').classList.add('congrats-animation');
-                    setTimeout(() => document.getElementById('game-msg').classList.remove('congrats-animation'), 500);
+                    msg.classList.add('congrats-animation');
+                    setTimeout(() => msg.classList.remove('congrats-animation'), 500);
                 }
             } else {
                 msg.innerText = "❌ Incorrect. Try again!";
@@ -870,7 +1109,6 @@
 
         // ================== LEADERBOARDS ==================
         function setupLeaderboards() {
-            // Score leaderboard
             const scoreQ = query(collection(db, "users"), orderBy("points", "desc"), limit(10));
             onSnapshot(scoreQ, (snap) => {
                 const body = document.getElementById('scoreboard-body');
@@ -881,14 +1119,12 @@
                 });
             });
 
-            // Level leaderboard - fixed: order by level only, then sort client-side
             const levelQ = query(collection(db, "users"), orderBy("level", "desc"), limit(20));
             onSnapshot(levelQ, (snap) => {
                 const users = [];
                 snap.forEach(u => {
                     users.push({ id: u.id, ...u.data() });
                 });
-                // Sort by level desc, then xp desc
                 users.sort((a, b) => {
                     if (a.level !== b.level) return b.level - a.level;
                     return (b.xp || 0) - (a.xp || 0);
@@ -900,7 +1136,6 @@
                 });
             });
 
-            // Rank leaderboard
             const rankQ = query(collection(db, "users"), orderBy("rankPoints", "desc"), limit(10));
             onSnapshot(rankQ, (snap) => {
                 const body = document.getElementById('rankboard-body');
@@ -950,6 +1185,45 @@
             if (!target) return;
             await updateDoc(doc(db, "users", target), { rankPoints: 0 });
             alert('Rank points reset');
+        });
+
+        // ================== FILE UPLOAD ==================
+        const fileInput = document.getElementById('word-file');
+        fileInput.addEventListener('change', async (e) => {
+            if (!isAdmin) { 
+                document.getElementById('upload-status').innerText = "Admins only"; 
+                fileInput.value = "";
+                return; 
+            }
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const status = document.getElementById('upload-status');
+            status.innerText = "Reading file...";
+            
+            try {
+                const text = await file.text();
+                const lines = text.split(/\r?\n/).map(line => line.trim().toLowerCase()).filter(line => line.length > 0);
+                const unique = [...new Set(lines)];
+                
+                status.innerText = `Adding ${unique.length} words...`;
+                let added = 0;
+                for (let word of unique) {
+                    try {
+                        await addDoc(collection(db, "words"), { word });
+                        added++;
+                    } catch (err) {
+                        console.error("Failed to add", word, err);
+                    }
+                }
+                status.innerText = `Added ${added} new words.`;
+                fileInput.value = "";
+                refreshAdminWords();
+                fetchWords();
+            } catch (err) {
+                status.innerText = "Error reading file: " + err.message;
+                fileInput.value = "";
+            }
         });
 
         // ================== ADMIN PANEL ==================
@@ -1043,13 +1317,18 @@
             { className: 'bg-dark', name: 'Dark Mode', cost: 15 },
             { className: 'bg-light', name: 'Light Mode', cost: 15 },
             { className: 'bg-candy', name: 'Candy Land', cost: 40 },
-            { className: 'bg-lavender', name: 'Lavender', cost: 30 }
+            { className: 'bg-lavender', name: 'Lavender', cost: 30 },
+            { className: 'bg-streak10', name: 'Streak Master', cost: 0, requiresStreak: 10 } // unlocked at streak 10
         ];
         function renderShop() {
             const grid = document.getElementById('themes-grid');
             grid.innerHTML = '';
             allThemes.forEach(theme => {
+                // Skip secret themes that are not unlocked
                 if (theme.secret && !currentUser.unlockedThemes.includes(theme.className)) return;
+                // Skip streak theme if not yet unlocked (it will be unlocked automatically at streak 10)
+                if (theme.requiresStreak && !currentUser.unlockedThemes.includes(theme.className)) return;
+                
                 const btn = document.createElement('button');
                 btn.className = 'buy-btn';
                 btn.dataset.theme = theme.className;
