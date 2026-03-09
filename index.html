@@ -655,6 +655,13 @@
                     <div class="stat-card">Words Today: <span id="stat-wordstoday">0</span></div>
                     <div class="stat-card">Longest Streak: <span id="stat-longeststreak">0</span></div>
                 </div>
+                <!-- Problem Words Section -->
+                <div class="problem-words" style="margin-top:15px;">
+                    <h4>⚠️ Problem Words (most errors)</h4>
+                    <ul id="problem-words-list" style="list-style:none; padding:0;">
+                        <li>Loading...</li>
+                    </ul>
+                </div>
             </section>
 
             <!-- Achievements -->
@@ -1028,6 +1035,7 @@
         let wordsList = [];
         let wordDeck = [];
         let currentWord = "";
+        let lastWord = "";  // to avoid repeats
         let isAdmin = false;
         let selectedVoiceURI = null;
         let voices = [];
@@ -1279,8 +1287,8 @@
                 // Not today
                 if (lastLogin === getYesterday()) {
                     if (daily >= DAILY_GOAL) {
-                        // Completed yesterday → increase streak
-                        currentUser.streak = lastStreak + 1;
+                        // Completed yesterday → streak remains (already counted)
+                        // Do NOT increment streak here; it will be incremented when today's goal is met.
                     } else {
                         // Did not complete yesterday → reset streak & eligible to recover
                         currentUser.streak = 0;
@@ -1519,7 +1527,7 @@
                     if (userSnap.data().password !== pw) { document.getElementById('login-msg').innerText = "Access Denied"; return; }
                     currentUser = { id: username, ...userSnap.data() };
                 } else {
-                    currentUser = { id: username, points: 0, unlockedThemes: ["bg-default"], unlockedBorders: ["none"], unlockedTitles: ["Novice"], password: pw, isAdmin: true, level: 1, xp: 0, rankPoints: 0, powerups: {}, streak: 0, dailyWords: 0, lastLogin: '', friends: [], achievements: {}, avatar: 'pfp', title: 'Admin', bannerColor: '#0f172a', border: 'none', totalCorrect: 0, wordOfDayAttempt: '', lastBonus: '', pointsSpent: 0, powerupUseCount:0, shieldUseCount:0, hintUseCount:0, doubleXpUseCount:0, challengeCount:0 };
+                    currentUser = { id: username, points: 0, unlockedThemes: ["bg-default"], unlockedBorders: ["none"], unlockedTitles: ["Novice"], password: pw, isAdmin: true, level: 1, xp: 0, rankPoints: 0, powerups: {}, streak: 0, dailyWords: 0, lastLogin: '', friends: [], achievements: {}, avatar: 'pfp', title: 'Admin', bannerColor: '#0f172a', border: 'none', totalCorrect: 0, wordOfDayAttempt: '', lastBonus: '', pointsSpent: 0, powerupUseCount:0, shieldUseCount:0, hintUseCount:0, doubleXpUseCount:0, challengeCount:0, wordStats: {} };
                     await setDoc(userRef, currentUser);
                 }
                 isAdmin = true;
@@ -1532,7 +1540,7 @@
                     }
                     currentUser = { id: username, ...userData };
                 } else {
-                    currentUser = { id: username, points: 0, unlockedThemes: ["bg-default"], unlockedBorders: ["none"], unlockedTitles: ["Novice"], isAdmin: false, level: 1, xp: 0, rankPoints: 0, powerups: {}, streak: 0, dailyWords: 0, lastLogin: '', friends: [], achievements: {}, avatar: 'pfp', title: 'Novice', bannerColor: '#0f172a', border: 'none', totalCorrect: 0, wordOfDayAttempt: '', lastBonus: '', pointsSpent: 0, powerupUseCount:0, shieldUseCount:0, hintUseCount:0, doubleXpUseCount:0, challengeCount:0 };
+                    currentUser = { id: username, points: 0, unlockedThemes: ["bg-default"], unlockedBorders: ["none"], unlockedTitles: ["Novice"], isAdmin: false, level: 1, xp: 0, rankPoints: 0, powerups: {}, streak: 0, dailyWords: 0, lastLogin: '', friends: [], achievements: {}, avatar: 'pfp', title: 'Novice', bannerColor: '#0f172a', border: 'none', totalCorrect: 0, wordOfDayAttempt: '', lastBonus: '', pointsSpent: 0, powerupUseCount:0, shieldUseCount:0, hintUseCount:0, doubleXpUseCount:0, challengeCount:0, wordStats: {} };
                     await setDoc(userRef, currentUser);
                 }
                 isAdmin = currentUser.isAdmin || false;
@@ -1564,6 +1572,7 @@
             if (!currentUser.hintUseCount) currentUser.hintUseCount = 0;
             if (!currentUser.doubleXpUseCount) currentUser.doubleXpUseCount = 0;
             if (!currentUser.challengeCount) currentUser.challengeCount = 0;
+            if (!currentUser.wordStats) currentUser.wordStats = {};
 
             // Secret theme
             if (["marina", "layla"].includes(username) && !currentUser.unlockedThemes.includes("bg-secret")) {
@@ -1754,7 +1763,8 @@
                     }
                 } else if (type === 'skip') {
                     if (currentWord) {
-                        // skip current word without penalty
+                        // skip current word without penalty, but record as skip
+                        await updateWordStat(currentWord, 'skip');
                         currentWord = "";
                         incorrectAttempts = 0;
                         document.getElementById('game-msg').innerText = "⏩ Skipped! (power-up)";
@@ -1787,6 +1797,93 @@
             if (currentUser.shieldUseCount >= 5) await checkAndUnlockAchievement('shielder');
             if (currentUser.hintUseCount >= 20) await checkAndUnlockAchievement('hint-master');
             if (currentUser.doubleXpUseCount >= 5) await checkAndUnlockAchievement('double-trouble');
+        }
+
+        // ---------- Word Statistics ----------
+        async function updateWordStat(word, action) {
+            if (!word) return;
+            if (!currentUser.wordStats) currentUser.wordStats = {};
+            if (!currentUser.wordStats[word]) {
+                currentUser.wordStats[word] = { incorrect: 0, skip: 0, correct: 0 };
+            }
+            if (action === 'incorrect') currentUser.wordStats[word].incorrect++;
+            else if (action === 'skip') currentUser.wordStats[word].skip++;
+            else if (action === 'correct') currentUser.wordStats[word].correct++;
+
+            // Save to Firestore (could be batched, but we do it immediately)
+            await updateDoc(doc(db, "users", currentUser.id), { wordStats: currentUser.wordStats });
+
+            // Update the problem words display
+            updateProblemWordsList();
+        }
+
+        function updateProblemWordsList() {
+            const listEl = document.getElementById('problem-words-list');
+            if (!currentUser.wordStats || Object.keys(currentUser.wordStats).length === 0) {
+                listEl.innerHTML = '<li>No problem words yet.</li>';
+                return;
+            }
+
+            // Convert to array and sort by (incorrect+skip) descending
+            const entries = Object.entries(currentUser.wordStats).map(([word, stats]) => ({
+                word,
+                score: (stats.incorrect || 0) + (stats.skip || 0)
+            }));
+            entries.sort((a, b) => b.score - a.score);
+            const top5 = entries.slice(0, 5);
+
+            listEl.innerHTML = top5.map(e => 
+                `<li style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.1);">
+                    <span>${e.word}</span>
+                    <span style="color:var(--danger);">${e.score}</span>
+                </li>`
+            ).join('');
+        }
+
+        // ---------- Weighted Word Selection (avoids last word) ----------
+        function getWeightedWord(avoid = '') {
+            if (!wordsList || wordsList.length === 0) return null;
+
+            // If wordDeck is empty, replenish from wordsList
+            if (wordDeck.length === 0) wordDeck = [...wordsList];
+
+            // Build list of candidates (words in wordDeck, possibly excluding avoid if there's more than one)
+            let candidates = wordDeck;
+            if (avoid && candidates.length > 1) {
+                candidates = candidates.filter(w => w !== avoid);
+            }
+            if (candidates.length === 0) {
+                // Only the avoided word is left, so we have to use it
+                candidates = wordDeck;
+            }
+
+            // Compute weights: base weight 1 + (incorrect+skip)*2 (or any factor)
+            const weights = [];
+            for (let w of candidates) {
+                let weight = 1;
+                if (currentUser.wordStats && currentUser.wordStats[w]) {
+                    const err = (currentUser.wordStats[w].incorrect || 0) + (currentUser.wordStats[w].skip || 0);
+                    weight += err * 2; // increase probability for problematic words
+                }
+                weights.push(weight);
+            }
+
+            // Weighted random selection
+            const totalWeight = weights.reduce((a, b) => a + b, 0);
+            let rand = Math.random() * totalWeight;
+            let idx = 0;
+            for (let i = 0; i < weights.length; i++) {
+                if (rand < weights[i]) {
+                    idx = i;
+                    break;
+                }
+                rand -= weights[i];
+            }
+            const selected = candidates[idx];
+
+            // Remove from wordDeck (so it doesn't repeat until deck is empty)
+            wordDeck = wordDeck.filter(w => w !== selected);
+            return selected;
         }
 
         // ---------- App Setup ----------
@@ -1822,6 +1919,7 @@
             renderBorderOptions();
             renderTitleOptions();
             updateStatsPanel();
+            updateProblemWordsList(); // initial display
 
             renderShop();
             fetchWords();
@@ -2287,9 +2385,14 @@
         document.getElementById('play-word-btn').addEventListener('click', () => {
             if (!wordsList.length) { document.getElementById('game-msg').innerText = "Database is empty!"; return; }
             if (!currentWord) {
-                if (wordDeck.length === 0) wordDeck = [...wordsList];
-                const rand = Math.floor(Math.random() * wordDeck.length);
-                currentWord = wordDeck.splice(rand, 1)[0];
+                // Use weighted selection, avoiding the last word
+                const nextWord = getWeightedWord(lastWord);
+                if (!nextWord) {
+                    document.getElementById('game-msg').innerText = "No words available?";
+                    return;
+                }
+                currentWord = nextWord;
+                lastWord = currentWord;
                 incorrectAttempts = 0;
                 document.getElementById('meaning-display').classList.add('hidden');
             }
@@ -2316,6 +2419,7 @@
                 await addXP(xpGain);
                 msg.innerText = `🔥 Correct! +${pointsGain} pts, +${xpGain} XP`;
                 input.value = "";
+                await updateWordStat(currentWord, 'correct');
                 currentWord = "";
                 incorrectAttempts = 0;
                 await incrementDailyWords();
@@ -2345,10 +2449,12 @@
                 correctCount = 0; // reset streak
                 if (incorrectAttempts >= 3) {
                     msg.innerText = `❌ Three incorrect attempts! The word was: "${currentWord}".`;
+                    await updateWordStat(currentWord, 'incorrect');
                     currentWord = "";
                     incorrectAttempts = 0;
                 } else {
                     msg.innerText = `❌ Incorrect. Attempts: ${incorrectAttempts}/3`;
+                    await updateWordStat(currentWord, 'incorrect');
                 }
                 if (soundEnabled) playBeep();
             }
@@ -2361,6 +2467,7 @@
                 document.getElementById('game-msg').innerText = "Not enough points (need 10).";
                 return;
             }
+            await updateWordStat(currentWord, 'skip');
             currentWord = "";
             incorrectAttempts = 0;
             document.getElementById('game-msg').innerText = "⏩ Skipped! -10 points";
@@ -2423,6 +2530,7 @@
                 await addPoints(pointsEarned);
                 await addXP(xpEarned);
                 document.getElementById('challenge-msg').innerText = `✅ +${pointsEarned} pts, +${xpEarned} XP!`;
+                await updateWordStat(currentWord, 'correct');
                 challengeWordsSpelled.push({ word: currentWord, correct: true });
                 challengeIndex++;
                 document.getElementById('challenge-spell').value = '';
@@ -2430,6 +2538,7 @@
                 else endChallenge(true);
             } else {
                 document.getElementById('challenge-msg').innerText = "❌ Wrong, try again!";
+                await updateWordStat(currentWord, 'incorrect');
             }
         });
         function endChallenge(completed) {
@@ -2493,6 +2602,7 @@
                 document.getElementById('ranked-msg').innerText = `✅ +${rpGain} RP, +${pointsGain} pts, +${xpGain} XP`;
                 document.getElementById('rank-points').innerText = currentUser.rankPoints;
                 document.getElementById('ranked-spell').value = '';
+                await updateWordStat(currentWord, 'correct');
                 currentWord = '';
 
                 if (currentUser.rankPoints >= 500) {
@@ -2508,6 +2618,7 @@
                     await updateDoc(doc(db, "users", currentUser.id), { rankPoints: currentUser.rankPoints });
                     document.getElementById('ranked-msg').innerText = `❌ Incorrect! -${loss} RP`;
                 }
+                await updateWordStat(currentWord, 'incorrect');
                 document.getElementById('rank-points').innerText = currentUser.rankPoints;
             }
         });
@@ -2591,8 +2702,10 @@
                 myScore++;
                 document.getElementById('live-my-score').innerText = myScore;
                 document.getElementById('live-msg').innerText = "✅ Correct!";
+                await updateWordStat(currentWord, 'correct');
             } else {
                 document.getElementById('live-msg').innerText = "❌ Incorrect.";
+                await updateWordStat(currentWord, 'incorrect');
             }
             document.getElementById('live-spell').value = '';
             document.getElementById('live-spell').disabled = true;
@@ -2753,10 +2866,12 @@
                     await addXP(xpGain);
                     msg.innerText = `✅ Correct! +${pointsGain} pts, +${xpGain} XP`;
                     input.value = "";
+                    await updateWordStat(currentPublicWord, 'correct');
                     currentPublicWord = "";
                     await incrementDailyWords();
                 } else {
                     msg.innerText = "❌ Incorrect. Try again!";
+                    await updateWordStat(currentPublicWord, 'incorrect');
                     if (soundEnabled) playBeep();
                 }
             });
