@@ -6,6 +6,7 @@
     <title>Spelling Bee Pro | Ultimate+</title>
     <!-- PWA / Add to Home Screen meta tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">   <!-- standard Android / cross‑platform -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Spelling Bee">
     <link rel="apple-touch-icon" href="data:image/png;base64,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">
@@ -3359,6 +3360,175 @@
             await updateNetWorth();
         });
 
+        // ========== MISSING FUNCTIONS ==========
+        function updateProblemWordsList() {
+            const container = document.getElementById('problem-words-list');
+            if (!container) return;
+            if (!currentUser || !currentUser.wordStats) {
+                container.innerHTML = '<li>No data yet.</li>';
+                return;
+            }
+            const words = Object.entries(currentUser.wordStats)
+                .map(([word, stats]) => ({ word, errors: (stats.incorrect || 0) }))
+                .filter(item => item.errors > 0)
+                .sort((a, b) => b.errors - a.errors)
+                .slice(0, 10);
+
+            if (words.length === 0) {
+                container.innerHTML = '<li>No problem words yet. Keep spelling!</li>';
+                return;
+            }
+            container.innerHTML = words.map(item => `<li>${item.word} - ${item.errors} error(s)</li>`).join('');
+        }
+
+        function renderMastery() {
+            const container = document.getElementById('mastery-list');
+            if (!container) return;
+            if (!currentUser || !currentUser.masteryStats) {
+                container.innerHTML = '<p>No mastery data yet.</p>';
+                return;
+            }
+            // masteryStats: { "word": { correct: 5, incorrect: 2 } }
+            const entries = Object.entries(currentUser.masteryStats)
+                .map(([word, stats]) => ({ word, correct: stats.correct || 0 }))
+                .sort((a, b) => b.correct - a.correct)
+                .slice(0, 5);  // top 5 mastered words
+
+            if (entries.length === 0) {
+                container.innerHTML = '<p>No mastered words yet.</p>';
+                return;
+            }
+            container.innerHTML = entries.map(item => 
+                `<div style="display:flex; justify-content:space-between;">
+                    <span>${item.word}</span>
+                    <span class="mastery-star">${'⭐'.repeat(Math.min(3, Math.ceil(item.correct/5)))}</span>
+                </div>`
+            ).join('');
+        }
+
+        function drawGraph() {
+            const canvas = document.getElementById('stats-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            // Simple placeholder – draw a line chart of last 7 days if dailyStats exists
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (!currentUser || !currentUser.dailyStats) {
+                ctx.fillStyle = '#aaa';
+                ctx.font = '12px sans-serif';
+                ctx.fillText('No data', 10, 20);
+                return;
+            }
+            // Example: use dailyStats (maybe an array of points per day)
+            // For demonstration, we draw a random line.
+            const points = [20, 30, 45, 60, 55, 70, 80];  // placeholder
+            ctx.beginPath();
+            ctx.strokeStyle = 'cyan';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < points.length; i++) {
+                const x = 30 + i * 35;
+                const y = canvas.height - 20 - points[i];
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        // These functions are stubs – replace with actual logic from original code if available
+        function getFilteredWords() {
+            // return words filtered by currentListId
+            return wordsData.filter(w => currentListId === 'all' || (w.lists && w.lists.includes(currentListId))).map(w => w.word);
+        }
+
+        function getWeightedWord(last) {
+            const filtered = getFilteredWords();
+            if (filtered.length === 0) return null;
+            // Simple random selection
+            const next = filtered[Math.floor(Math.random() * filtered.length)];
+            return next === last ? (filtered[0] || next) : next;
+        }
+
+        async function updateWordStat(word, result) {
+            if (!currentUser.wordStats) currentUser.wordStats = {};
+            if (!currentUser.wordStats[word]) currentUser.wordStats[word] = { correct: 0, incorrect: 0, skip: 0 };
+            if (result === 'correct') currentUser.wordStats[word].correct++;
+            else if (result === 'incorrect') currentUser.wordStats[word].incorrect++;
+            else if (result === 'skip') currentUser.wordStats[word].skip++;
+            await updateDoc(doc(db, "users", currentUser.id), { wordStats: currentUser.wordStats });
+            // also update masteryStats
+            if (!currentUser.masteryStats) currentUser.masteryStats = {};
+            if (!currentUser.masteryStats[word]) currentUser.masteryStats[word] = { correct: 0, incorrect: 0 };
+            if (result === 'correct') currentUser.masteryStats[word].correct++;
+            else if (result === 'incorrect') currentUser.masteryStats[word].incorrect++;
+            await updateDoc(doc(db, "users", currentUser.id), { masteryStats: currentUser.masteryStats });
+            renderMastery();
+        }
+
+        function updateDeckInfo() {
+            const deck = getFilteredWords();
+            document.getElementById('deck-info').innerText = `${deck.length} words available`;
+        }
+
+        async function loadLists() {
+            // load lists from Firestore
+            const snap = await getDocs(collection(db, "lists"));
+            listsData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            const select = document.getElementById('list-select');
+            select.innerHTML = '<option value="all">All</option>';
+            listsData.forEach(list => {
+                const opt = document.createElement('option');
+                opt.value = list.id;
+                opt.textContent = list.name;
+                select.appendChild(opt);
+            });
+            // also populate admin list delete dropdown
+            const listToDelete = document.getElementById('list-to-delete');
+            listToDelete.innerHTML = '<option value="">Select a list</option>';
+            listsData.forEach(list => {
+                const opt = document.createElement('option');
+                opt.value = list.id;
+                opt.textContent = list.name;
+                listToDelete.appendChild(opt);
+            });
+            const assignList = document.getElementById('assign-list-select');
+            assignList.innerHTML = '<option value="">Select list</option>';
+            listsData.forEach(list => {
+                const opt = document.createElement('option');
+                opt.value = list.id;
+                opt.textContent = list.name;
+                assignList.appendChild(opt);
+            });
+        }
+
+        async function fetchWords() {
+            const snap = await getDocs(collection(db, "words"));
+            wordsData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            updateDeckInfo();
+        }
+
+        function handleListChange(e) {
+            currentListId = e.target.value;
+            updateDeckInfo();
+            // reset current word
+            currentWord = "";
+            incorrectAttempts = 0;
+        }
+
+        function setupUnseenMode() {
+            // setup UI for unseen mode
+            document.getElementById('fetch-unseen-word').addEventListener('click', async () => {
+                // placeholder
+                alert("Unseen mode not fully implemented – would fetch random word from API.");
+            });
+        }
+
+        function setupPublicMode() {
+            // placeholder
+        }
+
+        async function refreshAdminWords() {
+            // placeholder
+        }
+
         // ---------- App Setup ----------
         async function setupApp() {
             document.getElementById('login-screen').classList.add('hidden');
@@ -3463,18 +3633,10 @@
             });
         }
 
-        // ---------- Remaining functions (words, lists, public mode, unseen mode, etc.) ----------
-        async function refreshAdminWords() { /* ... */ }
-        window.deleteWord = async (id) => { /* ... */ };
-        document.getElementById('add-word-btn').addEventListener('click', async () => { /* ... */ });
-        document.getElementById('word-file').addEventListener('change', async (e) => { /* ... */ });
-        function setupListManagement() { /* ... */ }
-        document.getElementById('delete-account-btn').addEventListener('click', async () => { /* ... */ });
-        async function loadCustomWordsForAdmin() { /* ... */ }
-        function setupPublicMode() { /* ... */ }
-        async function loadPublicWords() { /* ... */ }
-        function setupUnseenMode() { /* ... */ }
-        // ... (all other functions from your original code)
+        // ---------- Additional stubs ----------
+        async function loadCustomWordsForAdmin() { /* placeholder */ }
+        function setupListManagement() { /* placeholder */ }
+        // ... (other functions from original code)
     </script>
 </body>
 </html>
