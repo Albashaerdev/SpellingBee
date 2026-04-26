@@ -1259,38 +1259,48 @@
 
                 <!-- Leaderboards (global, all users) -->
                 <section>
-                    <h3 class="section-title">🏆 Leaderboards</h3>
-                    <div class="tabs">
-                        <button class="tab active" data-leaderboard="score">Score</button>
-                        <button class="tab" data-leaderboard="level">Level</button>
-                        <button class="tab" data-leaderboard="rank">Ranked</button>
-                        <button class="tab" data-leaderboard="networth">Net Worth</button>
-                        <button class="tab" data-leaderboard="weekly">Weekly</button>
-                    </div>
-                    <div style="display:flex; gap:10px; margin-bottom:10px;">
-                        <button id="leaderboard-filter-global" class="tab active">Global</button>
-                        <button id="leaderboard-filter-friends" class="tab">Friends</button>
-                        <select id="leaderboard-country-filter" style="margin-left:auto; background:rgba(0,0,0,0.5);">
-                            <option value="">All Countries</option>
-                            <option value="US">United States</option>
-                            <option value="UK">United Kingdom</option>
-                            <option value="AU">Australia</option>
-                            <option value="CA">Canada</option>
-                        </select>
-                        <select id="leaderboard-time-filter">
-                            <option value="alltime">All Time</option>
-                            <option value="monthly">Monthly</option>
-                            <option value="weekly">Weekly</option>
-                        </select>
-                    </div>
-                    <div class="table-container">
-                        <div id="score-leaderboard">\(<tbody id="scoreboard-body"></tbody>\)</div>
-                        <div id="level-leaderboard" class="hidden">\(<tbody id="levelboard-body"></tbody>\)</div>
-                        <div id="rank-leaderboard" class="hidden">\(<tbody id="rankboard-body"></tbody>\)</div>
-                        <div id="networth-leaderboard" class="hidden">\(<tbody id="networth-body"></tbody>\)</div>
-                        <div id="weekly-leaderboard" class="hidden">\(<tbody id="weekly-body"></tbody>\)</div>
-                    </div>
-                </section>
+    <h3 class="section-title">🏆 Leaderboards</h3>
+    <div class="tabs">
+        <button class="tab active" data-leaderboard="score">Score</button>
+        <button class="tab" data-leaderboard="level">Level</button>
+        <button class="tab" data-leaderboard="rank">Ranked</button>
+        <button class="tab" data-leaderboard="networth">Net Worth</button>
+        <button class="tab" data-leaderboard="weekly">Weekly</button>
+    </div>
+    <div style="display:flex; gap:10px; margin-bottom:10px;">
+        <button id="leaderboard-filter-global" class="tab active">Global</button>
+        <button id="leaderboard-filter-friends" class="tab">Friends</button>
+        <select id="leaderboard-country-filter" style="margin-left:auto; background:rgba(0,0,0,0.5);">
+            <option value="">All Countries</option>
+            <option value="US">United States</option>
+            <option value="UK">United Kingdom</option>
+            <option value="AU">Australia</option>
+            <option value="CA">Canada</option>
+        </select>
+        <select id="leaderboard-time-filter">
+            <option value="alltime">All Time</option>
+            <option value="monthly">Monthly</option>
+            <option value="weekly">Weekly</option>
+        </select>
+    </div>
+    <div class="table-container">
+        <div id="score-leaderboard">
+            <table><thead><tr><th>Player</th><th>Score</th></tr></thead><tbody id="scoreboard-body"></tbody></table>
+        </div>
+        <div id="level-leaderboard" class="hidden">
+            <table><thead><tr><th>Player</th><th>Level</th><th>XP</th></tr></thead><tbody id="levelboard-body"></tbody></table>
+        </div>
+        <div id="rank-leaderboard" class="hidden">
+            <table><thead><tr><th>Player</th><th>Rank Points</th></tr></thead><tbody id="rankboard-body"></tbody></table>
+        </div>
+        <div id="networth-leaderboard" class="hidden">
+            <table><thead><tr><th>Player</th><th>Net Worth</th></tr></thead><tbody id="networth-body"></tbody></table>
+        </div>
+        <div id="weekly-leaderboard" class="hidden">
+            <table><thead><tr><th>Player</th><th>Weekly Points</th></tr></thead><tbody id="weekly-body"></tbody></table>
+        </div>
+    </div>
+</section>
 
                 <!-- Themes Shop -->
                 <section>
@@ -2818,61 +2828,118 @@
         let currentCountryFilter = '';
         let currentTimeFilter = 'alltime';
         function setupLeaderboards() {
-            const usersQuery = query(collection(db, "users"));
-            onSnapshot(usersQuery, (snap) => {
-                const users = [];
-                snap.forEach(u => users.push({ id: u.id, ...u.data() }));
-                filterAndRenderLeaderboard(users);
-            });
+    const usersQuery = query(collection(db, "users"));
+    onSnapshot(usersQuery, (snap) => {
+        const users = [];
+        snap.forEach(u => users.push({ id: u.id, ...u.data() }));
+        filterAndRenderLeaderboard(users);
+    });
 
-            document.getElementById('leaderboard-filter-global').addEventListener('click', () => {
-                document.getElementById('leaderboard-filter-global').classList.add('active');
-                document.getElementById('leaderboard-filter-friends').classList.remove('active');
-                leaderboardFilter = 'global';
-            });
-            document.getElementById('leaderboard-filter-friends').addEventListener('click', () => {
-                document.getElementById('leaderboard-filter-friends').classList.add('active');
-                document.getElementById('leaderboard-filter-global').classList.remove('active');
-                leaderboardFilter = 'friends';
-            });
-            document.getElementById('leaderboard-country-filter').addEventListener('change', (e) => {
-                currentCountryFilter = e.target.value;
-            });
-            document.getElementById('leaderboard-time-filter').addEventListener('change', (e) => {
-                currentTimeFilter = e.target.value;
-            });
+    document.getElementById('leaderboard-filter-global').addEventListener('click', () => {
+        document.getElementById('leaderboard-filter-global').classList.add('active');
+        document.getElementById('leaderboard-filter-friends').classList.remove('active');
+        leaderboardFilter = 'global';
+    });
+    document.getElementById('leaderboard-filter-friends').addEventListener('click', () => {
+        document.getElementById('leaderboard-filter-friends').classList.add('active');
+        document.getElementById('leaderboard-filter-global').classList.remove('active');
+        leaderboardFilter = 'friends';
+    });
+    document.getElementById('leaderboard-country-filter').addEventListener('change', (e) => {
+        currentCountryFilter = e.target.value;
+    });
+    document.getElementById('leaderboard-time-filter').addEventListener('change', (e) => {
+        currentTimeFilter = e.target.value;
+    });
 
-            document.querySelectorAll('[data-leaderboard]').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('[data-leaderboard]').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    document.getElementById('score-leaderboard').classList.add('hidden');
-                    document.getElementById('level-leaderboard').classList.add('hidden');
-                    document.getElementById('rank-leaderboard').classList.add('hidden');
-                    document.getElementById('networth-leaderboard').classList.add('hidden');
-                    document.getElementById('weekly-leaderboard').classList.add('hidden');
-                    if (btn.dataset.leaderboard === 'score') document.getElementById('score-leaderboard').classList.remove('hidden');
-                    if (btn.dataset.leaderboard === 'level') document.getElementById('level-leaderboard').classList.remove('hidden');
-                    if (btn.dataset.leaderboard === 'rank') document.getElementById('rank-leaderboard').classList.remove('hidden');
-                    if (btn.dataset.leaderboard === 'networth') document.getElementById('networth-leaderboard').classList.remove('hidden');
-                    if (btn.dataset.leaderboard === 'weekly') document.getElementById('weekly-leaderboard').classList.remove('hidden');
-                });
-            });
-        }
+    document.querySelectorAll('[data-leaderboard]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('[data-leaderboard]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('score-leaderboard').classList.add('hidden');
+            document.getElementById('level-leaderboard').classList.add('hidden');
+            document.getElementById('rank-leaderboard').classList.add('hidden');
+            document.getElementById('networth-leaderboard').classList.add('hidden');
+            document.getElementById('weekly-leaderboard').classList.add('hidden');
+            if (btn.dataset.leaderboard === 'score') document.getElementById('score-leaderboard').classList.remove('hidden');
+            if (btn.dataset.leaderboard === 'level') document.getElementById('level-leaderboard').classList.remove('hidden');
+            if (btn.dataset.leaderboard === 'rank') document.getElementById('rank-leaderboard').classList.remove('hidden');
+            if (btn.dataset.leaderboard === 'networth') document.getElementById('networth-leaderboard').classList.remove('hidden');
+            if (btn.dataset.leaderboard === 'weekly') document.getElementById('weekly-leaderboard').classList.remove('hidden');
+        });
+    });
+}
 
         function filterAndRenderLeaderboard(users) {
-            let filtered = users;
-            if (leaderboardFilter === 'friends' && currentUser.friends) {
-                filtered = users.filter(u => currentUser.friends.includes(u.id) || u.id === currentUser.id);
-            }
-            if (currentCountryFilter) {
-                filtered = filtered.filter(u => u.country === currentCountryFilter);
-            }
-            if (currentTimeFilter === 'monthly') {
-                // For demo, just use same users
-            } else if (currentTimeFilter === 'weekly') {
-                // demo
-            }
+    let filtered = users;
+    if (leaderboardFilter === 'friends' && currentUser.friends) {
+        filtered = users.filter(u => currentUser.friends.includes(u.id) || u.id === currentUser.id);
+    }
+    if (currentCountryFilter) {
+        filtered = filtered.filter(u => u.country === currentCountryFilter);
+    }
+    if (currentTimeFilter === 'monthly') {
+        // placeholder – in real app filter by date
+    } else if (currentTimeFilter === 'weekly') {
+        filtered = filtered.filter(u => (u.weeklyPoints || 0) > 0);
+    }
+
+    const scoreSorted = [...filtered].sort((a, b) => (b.points || 0) - (a.points || 0)).slice(0, 10);
+    const scoreBody = document.getElementById('scoreboard-body');
+    if (scoreBody) {
+        scoreBody.innerHTML = scoreSorted.map(u => `
+            <tr>
+                <td><div style="display:flex; align-items:center; gap:6px;">${formatAvatar(u.avatar||'pfp')} ${u.id}${u.title?` (${u.title})`:''} <span class="online-indicator ${(u.lastActive && (new Date() - u.lastActive.toDate())<120000)?'online':'offline'}"></span></div></td>
+                <td style="text-align:right;">${u.points || 0}</td>
+            </tr>
+        `).join('');
+    }
+
+    const levelSorted = [...filtered].sort((a,b)=> (b.level||1)-(a.level||1) || (b.xp||0)-(a.xp||0)).slice(0,10);
+    const levelBody = document.getElementById('levelboard-body');
+    if (levelBody) {
+        levelBody.innerHTML = levelSorted.map(u => `
+            <tr>
+                <td><div style="display:flex; align-items:center; gap:6px;">${formatAvatar(u.avatar||'pfp')} ${u.id}${u.title?` (${u.title})`:''} <span class="online-indicator ${(u.lastActive && (new Date() - u.lastActive.toDate())<120000)?'online':'offline'}"></span></div></td>
+                <td>${u.level||1}</td>
+                <td>${u.xp||0}</td>
+            </tr>
+        `).join('');
+    }
+
+    const rankSorted = [...filtered].sort((a,b)=> (b.rankPoints||0)-(a.rankPoints||0)).slice(0,10);
+    const rankBody = document.getElementById('rankboard-body');
+    if (rankBody) {
+        rankBody.innerHTML = rankSorted.map(u => `
+            <tr>
+                <td><div style="display:flex; align-items:center; gap:6px;">${formatAvatar(u.avatar||'pfp')} ${u.id}${u.title?` (${u.title})`:''} <span class="online-indicator ${(u.lastActive && (new Date() - u.lastActive.toDate())<120000)?'online':'offline'}"></span></div></td>
+                <td style="text-align:right;">${u.rankPoints||0}</td>
+            </tr>
+        `).join('');
+    }
+
+    const netWorthSorted = [...filtered].sort((a,b)=> (b.netWorth||0)-(a.netWorth||0)).slice(0,10);
+    const netWorthBody = document.getElementById('networth-body');
+    if (netWorthBody) {
+        netWorthBody.innerHTML = netWorthSorted.map(u => `
+            <tr>
+                <td><div style="display:flex; align-items:center; gap:6px;">${formatAvatar(u.avatar||'pfp')} ${u.id}${u.title?` (${u.title})`:''} <span class="online-indicator ${(u.lastActive && (new Date() - u.lastActive.toDate())<120000)?'online':'offline'}"></span></div></td>
+                <td style="text-align:right;">${u.netWorth||0}</td>
+            </tr>
+        `).join('');
+    }
+
+    const weeklySorted = [...filtered].sort((a,b)=> (b.weeklyPoints||0)-(a.weeklyPoints||0)).slice(0,10);
+    const weeklyBody = document.getElementById('weekly-body');
+    if (weeklyBody) {
+        weeklyBody.innerHTML = weeklySorted.map(u => `
+            <tr>
+                <td><div style="display:flex; align-items:center; gap:6px;">${formatAvatar(u.avatar||'pfp')} ${u.id}${u.title?` (${u.title})`:''} <span class="online-indicator ${(u.lastActive && (new Date() - u.lastActive.toDate())<120000)?'online':'offline'}"></span></div></td>
+                <td style="text-align:right;">${u.weeklyPoints||0}</td>
+            </tr>
+        `).join('');
+    }
+}
 
             const scoreSorted = [...filtered].sort((a, b) => (b.points || 0) - (a.points || 0)).slice(0, 10);
             const scoreBody = document.getElementById('scoreboard-body');
@@ -2951,7 +3018,6 @@
                     `]<span style="display:inline-flex; align-items:center; gap:5px; padding:2px; ${borderStyle}">${formatAvatar(avatar)}</span> ${u.id}${titleText} ${onlineIndicator} </span>` +
                     `<td style="text-align:right;">${u.weeklyPoints || 0} </span>`;
             });
-        }
 
         function getBorderStyle(borderId) {
             if (borderId === 'none') return 'border: 2px dashed #aaa;';
