@@ -1133,6 +1133,7 @@
                             <button id="submit-challenge-btn" disabled>Submit</button>
                             <button id="challenge-show-meaning-btn" class="hidden" style="background:var(--info);">📖 Show Meaning</button>
                         </div>
+                        <button id="challenge-hear-btn" style="background:var(--primary); margin-bottom:10px;" class="hidden">🔊 Replay Word</button>
                         <div id="challenge-meaning-display" class="definition-box hidden"></div>
                         <p id="challenge-msg" class="msg"></p>
                         <div id="challenge-recap-area" class="challenge-recap hidden">
@@ -1453,7 +1454,7 @@
         // ---------- Firebase Configuration ----------
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, query, orderBy, limit, onSnapshot, serverTimestamp, where, arrayUnion, arrayRemove, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         const firebaseConfig = {
             apiKey: "AIzaSyBtCy-YbS2LC_cF5LlWRHXqa7SD-Rn5E6k",
             authDomain: "spelling-bee-f845d.firebaseapp.com",
@@ -1464,6 +1465,24 @@
         };
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Ensure anonymous authentication before any Firestore call
+        const authReady = new Promise((resolve) => {
+            const unsubscribe = onAuthStateChanged(auth, (user) => {
+                unsubscribe();
+                if (user) {
+                    resolve(user);
+                } else {
+                    signInAnonymously(auth).then((userCredential) => {
+                        resolve(userCredential.user);
+                    }).catch((err) => {
+                        console.error("Anonymous auth failed:", err);
+                        resolve(null);
+                    });
+                }
+            });
+        });
 
         // ---------- Game State ----------
         let currentUser = null;
@@ -1500,6 +1519,12 @@
         let friendRequests = [];
         let globalHoneyTotal = 0;
         let globalLastThreshold = 0;
+
+        // Leaderboard filters
+        let leaderboardFilter = 'global';
+        let currentCountryFilter = '';
+        let currentTimeFilter = 'alltime';
+        let latestUsers = [];
 
         const achievementsList = [
             { id: "first-word", name: "First Word", desc: "Spell your first word correctly.", xp: 10, icon: "🏆" },
@@ -1565,46 +1590,37 @@
             word = word.toLowerCase();
             let score = 0;
 
-            // 1. Length factor
             if (word.length <= 4) score += 1;
             else if (word.length <= 6) score += 2;
             else if (word.length <= 8) score += 3;
             else if (word.length <= 10) score += 4;
             else score += 5;
 
-            // 2. Rare letters (q, z, x, j, k, v, w)
             const rareLetters = /[qzxjkwv]/g;
             const rareCount = (word.match(rareLetters) || []).length;
             score += rareCount * 1.5;
 
-            // 3. Consonant clusters (e.g., "str", "ght", "nth")
             const clusterRegex = /[bcdfghjklmnpqrstvwxz]{3,}/g;
             const clusters = word.match(clusterRegex) || [];
             score += clusters.length * 1.2;
 
-            // 4. Unusual letter patterns (ph, gh, kn, wr, ps, mn)
             const unusualPatterns = /(ph|gh|kn|wr|ps|mn|rh|sch|thr)/g;
             const patterns = word.match(unusualPatterns) || [];
             score += patterns.length * 1.2;
 
-            // 5. Vowel/consonant ratio – more consonants = harder
             const vowels = (word.match(/[aeiou]/g) || []).length;
             const consonants = word.length - vowels;
             if (consonants > vowels * 1.5) score += 1.5;
 
-            // 6. Word frequency (common words are easier)
             const commonWords = new Set([
                 "the","be","to","of","and","a","in","that","have","i","it","for","not","on","with","he","as","you","do","at","this","but","his","by","from","they","we","say","her","she","or","an","will","my","one","all","would","there","their","what","so","up","out","if","about","who","get","which","go","me","when","make","can","like","time","no","just","him","know","take","people","into","year","your","good","some","could","them","see","other","than","then","now","look","only","come","its","over","think","also","back","after","use","two","how","our","work","first","well","way","even","new","want","because","any","these","give","day","most","us"
             ]);
             if (commonWords.has(word)) score -= 2;
             else if (word.length <= 6 && rareCount === 0 && patterns.length === 0) score -= 1;
 
-            // 7. Random variance to avoid predictability
             score += (Math.random() - 0.5) * 0.8;
-
-            // Clamp score between 1 and 5, then map to difficulty level
             let finalScore = Math.min(5, Math.max(1, Math.round(score)));
-            return finalScore; // 1=easy, 2=normal, 3=hard, 4=very hard, 5=impossible
+            return finalScore;
         }
 
         function xpForDifficulty(diff) {
@@ -1616,7 +1632,6 @@
             return 10;
         }
 
-        // Filter out impossible quests based on user's level and unlocked features
         function getAvailableQuests() {
             const level = currentUser?.level || 1;
             const hasRanked = level >= 30;
@@ -1683,7 +1698,6 @@
         let currentUnseenWord = '';
         let unseenWordDefinition = '';
 
-        // Word fun facts database
         const funFacts = {
             "apple": "🍎 Apples float in water because they are 25% air!",
             "beautiful": "✨ The word 'beautiful' is often considered one of the most aesthetically pleasing words in English.",
@@ -1700,16 +1714,6 @@
 
         async function getFunFact(word) {
             if (funFacts[word]) return funFacts[word];
-            // Try to fetch from an API if available, else return default
-            try {
-                const response = await fetch(`https://api.api-ninjas.com/v1/facts?word=${word}`, {
-                    headers: { 'X-Api-Key': 'YOUR_API_KEY' } // requires API key; skip for now
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.length && data[0].fact) return data[0].fact;
-                }
-            } catch(e) {}
             return funFacts["default"];
         }
 
@@ -1717,10 +1721,9 @@
         function xpForLevel(level) { if (level < 40) return 150; else return 250; }
         function mapDifficultyToLevel(diff) { if (diff === 1) return "easy"; if (diff === 2) return "normal"; if (diff === 3) return "hard"; if (diff === 4) return "very hard"; return "impossible"; }
         function isImpossible(word) { return analyzeWordDifficulty(word) >= 5; }
-        const profanityList = ["badword1", "badword2", "profanity"];
+        const profanityList = [];
         function isInappropriate(word) { const lower = word.toLowerCase(); return profanityList.some(bad => lower.includes(bad)); }
 
-        // ---------- Net Worth ----------
         function calculateNetWorth(user) {
             const points = Number(user.points) || 0;
             const pointsSpent = Number(user.pointsSpent) || 0;
@@ -1734,7 +1737,6 @@
         async function updateNetWorth() { if (!currentUser) return; const netWorth = calculateNetWorth(currentUser); if (netWorth === lastNetWorth) return; lastNetWorth = netWorth; await updateDoc(doc(db, "users", currentUser.id), { netWorth }); currentUser.netWorth = netWorth; }
         async function recalcAllNetWorths() { if (!masterAdmin) return; const usersSnap = await getDocs(collection(db, "users")); for (const userDoc of usersSnap.docs) { const userData = userDoc.data(); const netWorth = calculateNetWorth(userData); await updateDoc(doc(db, "users", userDoc.id), { netWorth }); } alert("All net worths recalculated!"); }
 
-        // ---------- Points and Honey ----------
         async function addPoints(amount) { if (doublePointsActive) amount *= 2; currentUser.points = (Number(currentUser.points) || 0) + amount; await updateDoc(doc(db, "users", currentUser.id), { points: currentUser.points }); updateStats(); await updateNetWorth(); }
         async function spendPoints(amount) { if ((Number(currentUser.points) || 0) < amount) return false; currentUser.points = (Number(currentUser.points) || 0) - amount; currentUser.pointsSpent = (Number(currentUser.pointsSpent) || 0) + amount; await updateDoc(doc(db, "users", currentUser.id), { points: currentUser.points, pointsSpent: currentUser.pointsSpent }); updateStats(); await updateNetWorth(); return true; }
         function pointsForLevel(level) { return 5 * (level + 1); }
@@ -1744,8 +1746,6 @@
             currentUser.honeycombs = honeycombs; 
             await updateDoc(doc(db, "users", currentUser.id), { honeycombs }); 
             document.getElementById('honey-display').innerText = honeycombs;
-
-            // Update global honey count
             const globalStatsRef = doc(db, "globalStats", "stats");
             const globalSnap = await getDoc(globalStatsRef);
             if (globalSnap.exists()) {
@@ -1755,7 +1755,6 @@
                 if (total >= lastThreshold + 1000) {
                     const newThreshold = lastThreshold + 1000;
                     await updateDoc(globalStatsRef, { lastRewardThreshold: newThreshold });
-                    // Mark all users for reward
                     const usersSnap = await getDocs(collection(db, "users"));
                     const batch = writeBatch(db);
                     usersSnap.forEach(userDoc => {
@@ -1769,11 +1768,9 @@
         }
         async function spendHoney(amount) { if (honeycombs < amount) return false; honeycombs -= amount; currentUser.honeycombs = honeycombs; await updateDoc(doc(db, "users", currentUser.id), { honeycombs }); document.getElementById('honey-display').innerText = honeycombs; return true; }
 
-        // ---------- Online Status ----------
-        async function updateLastActive() { if (!currentUser) return; await updateDoc(doc(db, "users", currentUser.id), { lastActive: new Date() }); }
+        async function updateLastActive() { if (!currentUser) return; await updateDoc(doc(db, "users", currentUser.id), { lastActive: serverTimestamp() }); }
         setInterval(updateLastActive, 60000);
 
-        // ---------- Streak Functions ----------
         function getTodayDate() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
         function getYesterday() { const d = new Date(); d.setDate(d.getDate()-1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
         let recoverEligible = false;
@@ -1825,7 +1822,7 @@
             }
         }
         async function recoverStreak() {
-            if (!await spendPoints(50, "streak recovery")) {
+            if (!await spendPoints(50)) {
                 alert("Not enough points!");
                 return;
             }
@@ -1869,7 +1866,6 @@
             }
         }
 
-        // ---------- Voice with accent ----------
         function populateVoices() {
             voices = window.speechSynthesis.getVoices();
             const select = document.getElementById('voice-select');
@@ -1945,7 +1941,6 @@
             } catch (e) {}
         }
 
-        // ---------- Definition with examples ----------
         async function fetchDefinition(word) {
             try {
                 const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
@@ -1960,7 +1955,6 @@
             }
         }
 
-        // ---------- Daily Bonus ----------
         async function claimDailyBonus() {
             const today = getTodayDate();
             if (currentUser.lastBonus === today) {
@@ -1976,10 +1970,9 @@
             document.getElementById('daily-bonus-msg').innerText = `🎉 You claimed ${bonus} points and ${honeyBonus} 🍯!`;
         }
 
-        // ---------- Buy XP / Honey ----------
         async function buyXP() {
             const cost = 100;
-            if (!await spendPoints(cost, "buy XP")) {
+            if (!await spendPoints(cost)) {
                 alert("Not enough points! Need 100 points.");
                 return;
             }
@@ -1988,7 +1981,7 @@
         }
         async function buyHoney() {
             const cost = 50;
-            if (!await spendPoints(cost, "buy honey")) {
+            if (!await spendPoints(cost)) {
                 alert("Not enough points!");
                 return;
             }
@@ -2010,177 +2003,450 @@
                 return;
             }
             usernameCheckTimeout = setTimeout(async () => {
-                const userRef = doc(db, "users", val);
-                const userSnap = await getDoc(userRef);
-                if (userSnap.exists() && userSnap.data().password) {
-                    passArea.classList.remove('hidden');
-                    pwLabel.innerText = `Password for ${val}:`;
-                } else {
+                try {
+                    const userRef = doc(db, "users", val);
+                    const userSnap = await getDoc(userRef);
+                    if (userSnap.exists() && userSnap.data().password) {
+                        passArea.classList.remove('hidden');
+                        pwLabel.innerText = `Password for ${val}:`;
+                    } else {
+                        passArea.classList.add('hidden');
+                    }
+                } catch (e) {
+                    console.error("Error checking username:", e);
                     passArea.classList.add('hidden');
                 }
             }, 500);
         });
 
-        document.getElementById('login-btn').addEventListener('click', async () => {
-            const username = document.getElementById('username-input').value.trim().toLowerCase();
-            if (!username) { document.getElementById('login-msg').innerText = "Enter a username."; return; }
-            const userRef = doc(db, "users", username);
-            const userSnap = await getDoc(userRef);
-            const pw = document.getElementById('password-input').value.trim();
+        async function refreshAdminWords() {
+            const container = document.getElementById('word-list-admin');
+            if (!container) return;
+            const snap = await getDocs(collection(db, "words"));
+            container.innerHTML = '';
+            snap.forEach(doc => {
+                const div = document.createElement('div');
+                div.innerHTML = `${doc.data().word} <button class="delete-word" data-id="${doc.id}">🗑️</button>`;
+                container.appendChild(div);
+            });
+            document.querySelectorAll('.delete-word').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    await deleteDoc(doc(db, "words", e.target.dataset.id));
+                    refreshAdminWords();
+                    fetchWords();
+                });
+            });
+        }
 
-            if (username === "abdullah") {
-                if (!pw) { document.getElementById('login-msg').innerText = "Password required."; return; }
-                if (userSnap.exists() && userSnap.data().password) {
-                    if (userSnap.data().password !== pw) { document.getElementById('login-msg').innerText = "Access Denied"; return; }
-                    currentUser = { id: username, ...userSnap.data() };
-                } else {
-                    currentUser = { id: username, points: 0, honeycombs: 0, unlockedThemes: ["bg-default"], unlockedBorders: ["none"], unlockedTitles: ["Novice"], password: pw, masterAdmin: true, level: 1, xp: 0, rankPoints: 0, powerups: {}, streak: 0, dailyWords: 0, lastLogin: '', friends: [], achievements: {}, avatar: 'pfp', title: 'Admin', bannerColor: '#0f172a', border: 'none', totalCorrect: 0, wordOfDayAttempt: '', lastBonus: '', pointsSpent: 0, powerupUseCount:0, shieldUseCount:0, hintUseCount:0, doubleXpUseCount:0, challengeCount:0, wordStats: {}, previousStreak: null, questProgress: {}, masteryStats: {}, dailyStats: {}, globalRewardReady: false };
-                    await setDoc(userRef, currentUser);
-                }
-                masterAdmin = true;
-                isAdmin = true;
-            } else {
-                if (userSnap.exists()) {
-                    const userData = userSnap.data();
-                    if (userData.password) {
-                        if (!pw) { document.getElementById('login-msg').innerText = "Password required."; return; }
-                        if (userData.password !== pw) { document.getElementById('login-msg').innerText = "Incorrect password."; return; }
-                    }
-                    currentUser = { id: username, ...userData };
-                } else {
-                    currentUser = { id: username, points: 0, honeycombs: 0, unlockedThemes: ["bg-default"], unlockedBorders: ["none"], unlockedTitles: ["Novice"], isAdmin: false, level: 1, xp: 0, rankPoints: 0, powerups: {}, streak: 0, dailyWords: 0, lastLogin: '', friends: [], achievements: {}, avatar: 'pfp', title: 'Novice', bannerColor: '#0f172a', border: 'none', totalCorrect: 0, wordOfDayAttempt: '', lastBonus: '', pointsSpent: 0, powerupUseCount:0, shieldUseCount:0, hintUseCount:0, doubleXpUseCount:0, challengeCount:0, wordStats: {}, previousStreak: null, questProgress: {}, masteryStats: {}, dailyStats: {}, globalRewardReady: false };
-                    await setDoc(userRef, currentUser);
-                }
-                isAdmin = currentUser.isAdmin || false;
-                masterAdmin = false;
-            }
+        async function loadCustomWordsForAdmin() {
+            const container = document.getElementById('custom-words-admin');
+            if (!container) return;
+            const snap = await getDocs(collection(db, "customWords"));
+            container.innerHTML = '';
+            snap.forEach(doc => {
+                const data = doc.data();
+                const div = document.createElement('div');
+                div.innerHTML = `${data.word} (${data.status || 'pending'}) 
+                    <button class="approve-cw" data-id="${doc.id}">✅</button>
+                    <button class="delete-cw" data-id="${doc.id}">🗑️</button>`;
+                container.appendChild(div);
+            });
+            document.querySelectorAll('.approve-cw').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    await updateDoc(doc(db, "customWords", e.target.dataset.id), { status: 'approved' });
+                    loadCustomWordsForAdmin();
+                });
+            });
+            document.querySelectorAll('.delete-cw').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    await deleteDoc(doc(db, "customWords", e.target.dataset.id));
+                    loadCustomWordsForAdmin();
+                });
+            });
+        }
 
-            // Initialize missing fields
-            if (!currentUser.unlockedThemes) currentUser.unlockedThemes = ["bg-default"];
-            if (!currentUser.unlockedBorders) currentUser.unlockedBorders = ["none"];
-            if (!currentUser.unlockedTitles) currentUser.unlockedTitles = ["Novice"];
-            if (!currentUser.level) currentUser.level = 1;
-            if (!currentUser.xp) currentUser.xp = 0;
-            if (!currentUser.rankPoints) currentUser.rankPoints = 0;
-            if (!currentUser.powerups) currentUser.powerups = {};
-            if (!currentUser.streak) currentUser.streak = 0;
-            if (!currentUser.dailyWords) currentUser.dailyWords = 0;
-            if (!currentUser.lastLogin) currentUser.lastLogin = '';
-            if (!currentUser.friends) currentUser.friends = [];
-            if (!currentUser.achievements) currentUser.achievements = {};
-            if (!currentUser.avatar) currentUser.avatar = 'pfp';
-            if (!currentUser.title) currentUser.title = 'Novice';
-            if (!currentUser.bannerColor) currentUser.bannerColor = '#0f172a';
-            if (!currentUser.border) currentUser.border = 'none';
-            if (!currentUser.totalCorrect) currentUser.totalCorrect = 0;
-            if (!currentUser.wordOfDayAttempt) currentUser.wordOfDayAttempt = '';
-            if (!currentUser.lastBonus) currentUser.lastBonus = '';
-            if (!currentUser.pointsSpent) currentUser.pointsSpent = 0;
-            if (!currentUser.powerupUseCount) currentUser.powerupUseCount = 0;
-            if (!currentUser.shieldUseCount) currentUser.shieldUseCount = 0;
-            if (!currentUser.hintUseCount) currentUser.hintUseCount = 0;
-            if (!currentUser.doubleXpUseCount) currentUser.doubleXpUseCount = 0;
-            if (!currentUser.challengeCount) currentUser.challengeCount = 0;
-            if (!currentUser.wordStats) currentUser.wordStats = {};
-            if (currentUser.previousStreak === undefined) currentUser.previousStreak = null;
-            if (!currentUser.honeycombs) currentUser.honeycombs = 0;
-            if (!currentUser.questProgress) currentUser.questProgress = {};
-            if (!currentUser.masteryStats) currentUser.masteryStats = {};
-            if (!currentUser.dailyStats) currentUser.dailyStats = {};
-            if (!currentUser.globalRewardReady) currentUser.globalRewardReady = false;
-
-            honeycombs = currentUser.honeycombs;
-            masteryStats = currentUser.masteryStats;
-            dailyStats = currentUser.dailyStats;
-
-            // Check for global reward
-            if (currentUser.globalRewardReady) {
-                currentUser.level += 10;
-                currentUser.points += 1000;
-                await updateDoc(userRef, { globalRewardReady: false, level: currentUser.level, points: currentUser.points });
-                alert("🌍 Community reached 1000 honey! You received 10 levels and 1000 points!");
-                updateStats();
-            }
-
-            if (["marina", "layla"].includes(username) && !currentUser.unlockedThemes.includes("bg-secret")) {
-                currentUser.unlockedThemes.push("bg-secret");
-                await updateDoc(userRef, { unlockedThemes: currentUser.unlockedThemes });
-            }
-            if (currentUser.preferredVoice) {
-                selectedVoiceURI = currentUser.preferredVoice;
-                document.getElementById('voice-select').value = selectedVoiceURI;
-            }
-            if (!currentUser.pointsSpent) {
-                let estimatedSpent = 0;
-                const allThemes = getAllThemes();
-                for (let theme of allThemes) {
-                    if (currentUser.unlockedThemes.includes(theme.className) && theme.cost > 0 && !theme.default && !theme.secret && !theme.requiresStreak) {
-                        estimatedSpent += theme.cost;
+        function setupListManagement() {
+            document.getElementById('create-list-btn').addEventListener('click', async () => {
+                const name = document.getElementById('new-list-name').value.trim();
+                if (!name) return;
+                await addDoc(collection(db, "lists"), { name });
+                loadLists();
+            });
+            document.getElementById('delete-list-only').addEventListener('click', async () => {
+                const listId = document.getElementById('list-to-delete').value;
+                if (!listId) return;
+                await deleteDoc(doc(db, "lists", listId));
+                loadLists();
+            });
+            document.getElementById('delete-list-and-words').addEventListener('click', async () => {
+                const listId = document.getElementById('list-to-delete').value;
+                if (!listId) return;
+                const snap = await getDocs(collection(db, "words"));
+                for (const docSnap of snap.docs) {
+                    const word = docSnap.data();
+                    if (word.lists && word.lists.includes(listId)) {
+                        word.lists = word.lists.filter(l => l !== listId);
+                        await updateDoc(doc(db, "words", docSnap.id), { lists: word.lists });
                     }
                 }
-                for (let border of borders) {
-                    if (currentUser.unlockedBorders.includes(border.id) && border.cost > 0 && !border.default) {
-                        estimatedSpent += border.cost;
-                    }
-                }
-                currentUser.pointsSpent = estimatedSpent;
-                await updateDoc(userRef, { pointsSpent: estimatedSpent });
+                await deleteDoc(doc(db, "lists", listId));
+                loadLists();
+                fetchWords();
+            });
+            document.getElementById('assign-list-select').addEventListener('change', refreshWordAssign);
+            document.getElementById('word-search').addEventListener('input', refreshWordAssign);
+            async function refreshWordAssign() {
+                const listId = document.getElementById('assign-list-select').value;
+                const search = document.getElementById('word-search').value.toLowerCase();
+                const snap = await getDocs(collection(db, "words"));
+                const container = document.getElementById('word-assign-container');
+                container.innerHTML = '';
+                snap.forEach(doc => {
+                    const word = doc.data().word;
+                    if (search && !word.includes(search)) return;
+                    const inList = doc.data().lists?.includes(listId);
+                    const div = document.createElement('div');
+                    div.className = 'word-assign-item';
+                    div.innerHTML = `<input type="checkbox" data-id="${doc.id}" ${inList ? 'checked' : ''}> ${word}`;
+                    container.appendChild(div);
+                });
+                document.querySelectorAll('#word-assign-container input[type="checkbox"]').forEach(cb => {
+                    cb.addEventListener('change', async (e) => {
+                        const wordId = e.target.dataset.id;
+                        const checked = e.target.checked;
+                        const wordRef = doc(db, "words", wordId);
+                        const wordSnap = await getDoc(wordRef);
+                        let lists = wordSnap.data().lists || [];
+                        if (checked) {
+                            if (!lists.includes(listId)) lists.push(listId);
+                        } else {
+                            lists = lists.filter(l => l !== listId);
+                        }
+                        await updateDoc(wordRef, { lists });
+                    });
+                });
             }
-            currentUser.netWorth = calculateNetWorth(currentUser);
-            lastNetWorth = currentUser.netWorth;
-            await updateDoc(userRef, { netWorth: currentUser.netWorth });
-            setupApp();
+        }
+
+        // ---------- Admin Add Word & Upload ----------
+        document.getElementById('add-word-btn').addEventListener('click', async () => {
+            const wordInput = document.getElementById('new-word-input');
+            const word = wordInput.value.trim().toLowerCase();
+            if (!word) return;
+            await addDoc(collection(db, "words"), { word, lists: [] });
+            wordInput.value = '';
+            refreshAdminWords();
+            fetchWords();
         });
 
-        // ---------- Password Modal ----------
+        document.getElementById('word-file').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const text = await file.text();
+            const words = text.split(/\r?\n/).map(w => w.trim().toLowerCase()).filter(w => w.length > 0);
+            let added = 0;
+            for (let w of words) {
+                try {
+                    await addDoc(collection(db, "words"), { word: w, lists: [] });
+                    added++;
+                } catch (err) {}
+            }
+            document.getElementById('upload-status').innerText = `Added ${added} words.`;
+            refreshAdminWords();
+            fetchWords();
+        });
+
+        document.getElementById('share-list-btn')?.addEventListener('click', () => {
+            const listId = currentListId;
+            if (listId === 'all') {
+                alert('Cannot share "All" list. Select a specific list.');
+                return;
+            }
+            // In a real app you'd generate a share link. For now:
+            alert(`Share link for list: https://example.com/share/${listId} (placeholder)`);
+        });
+
+        // ---------- App Setup ----------
+        async function setupApp() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('app-screen').classList.remove('hidden');
+            document.getElementById('welcome-text').innerText = "Hello, " + currentUser.id.charAt(0).toUpperCase() + currentUser.id.slice(1);
+            document.getElementById('profile-username').innerText = currentUser.id;
+            updateProfilePreview();
+            updateStats();
+            await checkStreakOnLogin();
+            await refreshDailyQuests();
+            await loadGlobalStats();
+            await loadFriendRequests();
+
+            if (masterAdmin || isAdmin) {
+                document.getElementById('admin-toggle-btn').classList.remove('hidden');
+                if (masterAdmin) {
+                    document.getElementById('role-badge').innerText = "MASTER ADMIN";
+                } else {
+                    document.getElementById('role-badge').innerText = "CLASS ADMIN";
+                }
+                refreshAdminWords();
+                document.getElementById('recalc-networth-btn').addEventListener('click', recalcAllNetWorths);
+                loadCustomWordsForAdmin();
+                setupListManagement();
+            } else {
+                document.getElementById('admin-toggle-btn').classList.add('hidden');
+                document.getElementById('role-badge').innerText = "STUDENT";
+            }
+
+            if (currentUser.level >= 15) document.getElementById('challenge-tab').disabled = false;
+            if (currentUser.level >= 30) document.getElementById('ranked-tab').disabled = false;
+            if (currentUser.level >= 50) document.getElementById('live-tab').disabled = false;
+
+            checkSeasonalEvent();
+            await fetchWords();  // important: fetch words before word of day
+            await loadWordOfDay();
+            loadWordOfWeek();
+            loadFriends();
+            loadAchievements();
+            renderBorderOptions();
+            renderTitleOptions();
+            updateStatsPanel();
+            updateProblemWordsList();
+            renderQuests();
+            renderMastery();
+            drawGraph();
+            populateFriendDropdown();
+            checkChallengeUnlock();
+            listenForIncomingChallenges();
+
+            renderShop();
+            await loadLists();
+            setupLeaderboards();
+            setupTabs();
+            setupUnseenMode();
+
+            await populateChallengeListSelect();
+            setupWordCountButtons();
+
+            document.getElementById('claim-daily-bonus-btn').addEventListener('click', claimDailyBonus);
+            document.getElementById('buy-xp-btn').addEventListener('click', buyXP);
+            document.getElementById('buy-honey-btn').addEventListener('click', buyHoney);
+
+            document.getElementById('show-meaning-btn')?.addEventListener('click', async () => {
+                if (!currentWord) { document.getElementById('game-msg').innerText = "No word to show meaning for."; return; }
+                const definition = await fetchDefinition(currentWord);
+                document.getElementById('meaning-display').innerText = `📖 ${definition}`;
+                document.getElementById('meaning-display').classList.remove('hidden');
+            });
+
+            document.getElementById('challenge-show-meaning-btn')?.addEventListener('click', async () => {
+                if (!currentWord) { document.getElementById('challenge-msg').innerText = "No word to show meaning for."; return; }
+                const definition = await fetchDefinition(currentWord);
+                document.getElementById('challenge-meaning-display').innerText = `📖 ${definition}`;
+                document.getElementById('challenge-meaning-display').classList.remove('hidden');
+            });
+
+            document.getElementById('live-show-meaning-btn')?.addEventListener('click', async () => {
+                if (!currentWord) { document.getElementById('live-msg').innerText = "No word to show meaning for."; return; }
+                const definition = await fetchDefinition(currentWord);
+                document.getElementById('live-meaning-display').innerText = `📖 ${definition}`;
+                document.getElementById('live-meaning-display').classList.remove('hidden');
+            });
+
+            setupPublicMode();
+            setupLivePlay();
+            updatePowerupsDisplay();
+
+            document.getElementById('list-select').addEventListener('change', handleListChange);
+        }
+
+        document.getElementById('login-btn').addEventListener('click', async () => {
+            const loginBtn = document.getElementById('login-btn');
+            const loginMsg = document.getElementById('login-msg');
+            const username = document.getElementById('username-input').value.trim().toLowerCase();
+
+            if (!username) { loginMsg.innerText = "Enter a username."; return; }
+
+            loginBtn.disabled = true;
+            loginMsg.innerText = '';
+
+            try {
+                await authReady;
+                const userRef = doc(db, "users", username);
+                const userSnap = await getDoc(userRef);
+                const pw = document.getElementById('password-input').value.trim();
+
+                if (username === "abdullah") {
+                    if (!pw) { loginMsg.innerText = "Password required."; loginBtn.disabled = false; return; }
+                    if (userSnap.exists() && userSnap.data().password) {
+                        if (userSnap.data().password !== pw) { loginMsg.innerText = "Access Denied"; loginBtn.disabled = false; return; }
+                        currentUser = { id: username, ...userSnap.data() };
+                    } else {
+                        currentUser = { id: username, points: 0, honeycombs: 0, unlockedThemes: ["bg-default"], unlockedBorders: ["none"], unlockedTitles: ["Novice"], password: pw, masterAdmin: true, level: 1, xp: 0, rankPoints: 0, powerups: {}, streak: 0, dailyWords: 0, lastLogin: '', friends: [], achievements: {}, avatar: 'pfp', title: 'Admin', bannerColor: '#0f172a', border: 'none', totalCorrect: 0, wordOfDayAttempt: '', lastBonus: '', pointsSpent: 0, powerupUseCount:0, shieldUseCount:0, hintUseCount:0, doubleXpUseCount:0, challengeCount:0, wordStats: {}, previousStreak: null, questProgress: {}, masteryStats: {}, dailyStats: {}, globalRewardReady: false };
+                        await setDoc(userRef, currentUser);
+                    }
+                    masterAdmin = true;
+                    isAdmin = true;
+                } else {
+                    if (userSnap.exists()) {
+                        const userData = userSnap.data();
+                        if (userData.password) {
+                            if (!pw) { loginMsg.innerText = "Password required."; loginBtn.disabled = false; return; }
+                            if (userData.password !== pw) { loginMsg.innerText = "Incorrect password."; loginBtn.disabled = false; return; }
+                        }
+                        currentUser = { id: username, ...userData };
+                    } else {
+                        currentUser = { id: username, points: 0, honeycombs: 0, unlockedThemes: ["bg-default"], unlockedBorders: ["none"], unlockedTitles: ["Novice"], isAdmin: false, level: 1, xp: 0, rankPoints: 0, powerups: {}, streak: 0, dailyWords: 0, lastLogin: '', friends: [], achievements: {}, avatar: 'pfp', title: 'Novice', bannerColor: '#0f172a', border: 'none', totalCorrect: 0, wordOfDayAttempt: '', lastBonus: '', pointsSpent: 0, powerupUseCount:0, shieldUseCount:0, hintUseCount:0, doubleXpUseCount:0, challengeCount:0, wordStats: {}, previousStreak: null, questProgress: {}, masteryStats: {}, dailyStats: {}, globalRewardReady: false };
+                        await setDoc(userRef, currentUser);
+                    }
+                    isAdmin = currentUser.isAdmin || false;
+                    masterAdmin = false;
+                }
+
+                // Initialize missing fields
+                if (!currentUser.unlockedThemes) currentUser.unlockedThemes = ["bg-default"];
+                if (!currentUser.unlockedBorders) currentUser.unlockedBorders = ["none"];
+                if (!currentUser.unlockedTitles) currentUser.unlockedTitles = ["Novice"];
+                if (!currentUser.level) currentUser.level = 1;
+                if (!currentUser.xp) currentUser.xp = 0;
+                if (!currentUser.rankPoints) currentUser.rankPoints = 0;
+                if (!currentUser.powerups) currentUser.powerups = {};
+                if (!currentUser.streak) currentUser.streak = 0;
+                if (!currentUser.dailyWords) currentUser.dailyWords = 0;
+                if (!currentUser.lastLogin) currentUser.lastLogin = '';
+                if (!currentUser.friends) currentUser.friends = [];
+                if (!currentUser.achievements) currentUser.achievements = {};
+                if (!currentUser.avatar) currentUser.avatar = 'pfp';
+                if (!currentUser.title) currentUser.title = 'Novice';
+                if (!currentUser.bannerColor) currentUser.bannerColor = '#0f172a';
+                if (!currentUser.border) currentUser.border = 'none';
+                if (!currentUser.totalCorrect) currentUser.totalCorrect = 0;
+                if (!currentUser.wordOfDayAttempt) currentUser.wordOfDayAttempt = '';
+                if (!currentUser.lastBonus) currentUser.lastBonus = '';
+                if (!currentUser.pointsSpent) currentUser.pointsSpent = 0;
+                if (!currentUser.powerupUseCount) currentUser.powerupUseCount = 0;
+                if (!currentUser.shieldUseCount) currentUser.shieldUseCount = 0;
+                if (!currentUser.hintUseCount) currentUser.hintUseCount = 0;
+                if (!currentUser.doubleXpUseCount) currentUser.doubleXpUseCount = 0;
+                if (!currentUser.challengeCount) currentUser.challengeCount = 0;
+                if (!currentUser.wordStats) currentUser.wordStats = {};
+                if (currentUser.previousStreak === undefined) currentUser.previousStreak = null;
+                if (!currentUser.honeycombs) currentUser.honeycombs = 0;
+                if (!currentUser.questProgress) currentUser.questProgress = {};
+                if (!currentUser.masteryStats) currentUser.masteryStats = {};
+                if (!currentUser.dailyStats) currentUser.dailyStats = {};
+                if (!currentUser.globalRewardReady) currentUser.globalRewardReady = false;
+
+                honeycombs = currentUser.honeycombs;
+                masteryStats = currentUser.masteryStats;
+                dailyStats = currentUser.dailyStats;
+
+                if (currentUser.globalRewardReady) {
+                    currentUser.level += 10;
+                    currentUser.points += 1000;
+                    await updateDoc(userRef, { globalRewardReady: false, level: currentUser.level, points: currentUser.points });
+                    alert("🌍 Community reached 1000 honey! You received 10 levels and 1000 points!");
+                    updateStats();
+                }
+
+                if (["marina", "layla"].includes(username) && !currentUser.unlockedThemes.includes("bg-secret")) {
+                    currentUser.unlockedThemes.push("bg-secret");
+                    await updateDoc(userRef, { unlockedThemes: currentUser.unlockedThemes });
+                }
+                if (currentUser.preferredVoice) {
+                    selectedVoiceURI = currentUser.preferredVoice;
+                    document.getElementById('voice-select').value = selectedVoiceURI;
+                }
+                if (!currentUser.pointsSpent) {
+                    let estimatedSpent = 0;
+                    const allThemes = getAllThemes();
+                    for (let theme of allThemes) {
+                        if (currentUser.unlockedThemes.includes(theme.className) && theme.cost > 0 && !theme.default && !theme.secret && !theme.requiresStreak) {
+                            estimatedSpent += theme.cost;
+                        }
+                    }
+                    for (let border of borders) {
+                        if (currentUser.unlockedBorders.includes(border.id) && border.cost > 0 && !border.default) {
+                            estimatedSpent += border.cost;
+                        }
+                    }
+                    currentUser.pointsSpent = estimatedSpent;
+                    await updateDoc(userRef, { pointsSpent: estimatedSpent });
+                }
+                currentUser.netWorth = calculateNetWorth(currentUser);
+                lastNetWorth = currentUser.netWorth;
+                await updateDoc(userRef, { netWorth: currentUser.netWorth });
+
+                document.getElementById('password-input').value = '';
+                document.getElementById('username-input').value = '';
+                document.getElementById('password-area').classList.add('hidden');
+
+                setupApp();
+            } catch (e) {
+                console.error("Login error:", e);
+                loginMsg.innerText = "Login failed: " + (e.message || "Unknown error. Try again.");
+                loginBtn.disabled = false;
+            }
+        });
+
+        // Password Modal
         document.getElementById('manage-password-btn').addEventListener('click', () => { document.getElementById('password-modal').classList.remove('hidden'); });
-        document.getElementById('cancel-pw-btn').addEventListener('click', () => { document.getElementById('password-modal').classList.add('hidden'); });
+        document.getElementById('cancel-pw-btn').addEventListener('click', () => {
+            document.getElementById('password-modal').classList.add('hidden');
+            document.getElementById('current-pw').value = '';
+            document.getElementById('new-pw').value = '';
+            document.getElementById('confirm-pw').value = '';
+            document.getElementById('pw-modal-msg').innerText = '';
+        });
         document.getElementById('save-pw-btn').addEventListener('click', async () => {
             const cur = document.getElementById('current-pw').value;
             const newPw = document.getElementById('new-pw').value;
             const conf = document.getElementById('confirm-pw').value;
             const msg = document.getElementById('pw-modal-msg');
-            if (currentUser.password && cur !== currentUser.password) {
-                msg.innerText = "Current password incorrect"; return;
+            const saveBtn = document.getElementById('save-pw-btn');
+
+            try {
+                if (currentUser.password && cur !== currentUser.password) {
+                    msg.innerText = "Current password incorrect";
+                    return;
+                }
+                if (newPw !== conf) {
+                    msg.innerText = "Passwords do not match";
+                    return;
+                }
+                if (!newPw) {
+                    msg.innerText = "New password cannot be empty";
+                    return;
+                }
+
+                saveBtn.disabled = true;
+                await updateDoc(doc(db, "users", currentUser.id), { password: newPw || null });
+                currentUser.password = newPw || null;
+                msg.innerText = "Password updated!";
+                msg.style.color = "var(--success)";
+
+                document.getElementById('current-pw').value = '';
+                document.getElementById('new-pw').value = '';
+                document.getElementById('confirm-pw').value = '';
+
+                setTimeout(() => {
+                    document.getElementById('password-modal').classList.add('hidden');
+                    msg.innerText = '';
+                    msg.style.color = "var(--danger)";
+                    saveBtn.disabled = false;
+                }, 1500);
+            } catch (e) {
+                console.error("Password update error:", e);
+                msg.innerText = "Failed to update password: " + (e.message || "Unknown error");
             }
-            if (newPw !== conf) { msg.innerText = "Passwords do not match"; return; }
-            await updateDoc(doc(db, "users", currentUser.id), { password: newPw || null });
-            currentUser.password = newPw || null;
-            msg.innerText = "Password updated!";
-            setTimeout(() => document.getElementById('password-modal').classList.add('hidden'), 1500);
         });
 
-        // ---------- Admin Toggle ----------
         document.getElementById('admin-toggle-btn').addEventListener('click', () => { document.getElementById('admin-panel').classList.toggle('hidden'); });
 
-        // ---------- Settings Panel Toggle ----------
         document.getElementById('settings-toggle-btn').addEventListener('click', () => { const panel = document.getElementById('settings-panel'); panel.classList.toggle('hidden'); document.getElementById('settings-toggle-btn').innerText = panel.classList.contains('hidden') ? '⚙️ Show Settings & Profile' : '⚙️ Hide Settings & Profile'; });
 
-        // ---------- Install App Modal ----------
         document.getElementById('install-app-btn').addEventListener('click', () => { document.getElementById('install-modal').classList.remove('hidden'); });
         document.getElementById('close-install-modal').addEventListener('click', () => { document.getElementById('install-modal').classList.add('hidden'); });
         window.addEventListener('click', (e) => { if (e.target === document.getElementById('install-modal')) document.getElementById('install-modal').classList.add('hidden'); });
 
         // ---------- Power-ups ----------
-        function updatePowerupsDisplay() {
-            const unlockMsg = document.getElementById('powerup-unlock-msg');
-            const grid = document.getElementById('powerup-grid');
-            const level = currentUser.level || 1;
-            const powerupBtns = document.querySelectorAll('.powerup-btn');
-            if (level >= 35) {
-                unlockMsg.classList.add('hidden');
-                grid.classList.remove('hidden');
-                powerupBtns.forEach(btn => btn.disabled = false);
-                document.getElementById('powerup-drag-menu').classList.remove('hidden');
-            } else {
-                unlockMsg.classList.remove('hidden');
-                grid.classList.add('hidden');
-                powerupBtns.forEach(btn => btn.disabled = true);
-                document.getElementById('powerup-drag-menu').classList.add('hidden');
-                document.getElementById('levels-remaining').innerText = 35 - level;
-            }
-        }
-
         const dragMenu = document.getElementById('powerup-drag-menu');
         let offsetX, offsetY;
         dragMenu.addEventListener('mousedown', (e) => { if (e.target.classList.contains('powerup-icon')) return; e.preventDefault(); offsetX = e.clientX - dragMenu.getBoundingClientRect().left; offsetY = e.clientY - dragMenu.getBoundingClientRect().top; document.addEventListener('mousemove', onMouseMove); document.addEventListener('mouseup', onMouseUp); });
@@ -2192,7 +2458,7 @@
                 const type = e.target.dataset.type;
                 const priceMap = { hint: 50, extratime: 75, doublexp: 100, shield: 80, freeze: 120, skip: 60, doublepoints: 150, peek: 40, letterreveal: 30, secondchance: 70 };
                 const price = priceMap[type];
-                if (!await spendPoints(price, `powerup: ${type}`)) {
+                if (!await spendPoints(price)) {
                     alert(`Not enough points! Need ${price} points.`);
                     return;
                 }
@@ -2283,14 +2549,7 @@
             if (currentUser.doubleXpUseCount >= 5) await checkAndUnlockAchievement('double-trouble');
         }
 
-        // ---------- Friend Requests ----------
-        async function loadFriendRequests() {
-            if (!currentUser) return;
-            const requestsRef = collection(db, "users", currentUser.id, "friendRequests");
-            const snap = await getDocs(requestsRef);
-            friendRequests = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            renderFriendRequests();
-        }
+        // Friend Requests
         function renderFriendRequests() {
             const container = document.getElementById('friend-requests-list');
             if (!container) return;
@@ -2321,7 +2580,6 @@
                         await updateDoc(doc(db, "users", currentUser.id), { friends: currentUser.friends });
                     }
                     await deleteDoc(doc(db, "users", currentUser.id, "friendRequests", reqId));
-                    // Also add current user to friend's friends list
                     const friendRef = doc(db, "users", from);
                     const friendSnap = await getDoc(friendRef);
                     if (friendSnap.exists()) {
@@ -2345,19 +2603,6 @@
             });
         }
 
-        // ---------- Global Stats ----------
-        async function loadGlobalStats() {
-            const globalRef = doc(db, "globalStats", "stats");
-            const snap = await getDoc(globalRef);
-            if (snap.exists()) {
-                globalHoneyTotal = snap.data().totalHoney || 0;
-                globalLastThreshold = snap.data().lastRewardThreshold || 0;
-            } else {
-                globalHoneyTotal = 0;
-                globalLastThreshold = 0;
-            }
-            updateGlobalQuestUI();
-        }
         function updateGlobalQuestUI() {
             const totalEl = document.getElementById('global-honey');
             const fillEl = document.getElementById('global-progress-fill');
@@ -2368,25 +2613,6 @@
             }
         }
 
-        // ---------- Daily Quests (with reroll) ----------
-        async function refreshDailyQuests() {
-            const today = getTodayDate();
-            if (currentUser.lastQuestRefresh === today && currentUser.dailyQuests) {
-                dailyQuests = currentUser.dailyQuests;
-            } else {
-                const available = getAvailableQuests();
-                const shuffled = [...available].sort(() => 0.5 - Math.random());
-                dailyQuests = shuffled.slice(0,3).map(q => ({
-                    ...q,
-                    progress: 0,
-                    completed: false
-                }));
-                currentUser.lastQuestRefresh = today;
-                currentUser.dailyQuests = dailyQuests;
-                await updateDoc(doc(db, "users", currentUser.id), { lastQuestRefresh: today, dailyQuests });
-            }
-            renderQuests();
-        }
         function renderQuests() {
             const container = document.getElementById('quests-list');
             if (!container) return;
@@ -2430,31 +2656,6 @@
             renderQuests();
         }
 
-        // ---------- Friend Challenge Dropdown (ENHANCED) ----------
-        function populateFriendDropdown() {
-            const select = document.getElementById('challenge-friend-select');
-            if (!select) return;
-            select.innerHTML = '<option value="">Select a friend</option>';
-            if (currentUser.friends) {
-                currentUser.friends.forEach(f => {
-                    const opt = document.createElement('option');
-                    opt.value = f;
-                    opt.textContent = f;
-                    select.appendChild(opt);
-                });
-            }
-            // Enable/disable send button based on selection and level
-            select.addEventListener('change', () => {
-                const btn = document.getElementById('send-challenge-btn');
-                if (select.value && (currentUser.level || 0) >= 10) {
-                    btn.disabled = false;
-                } else {
-                    btn.disabled = true;
-                }
-            });
-        }
-
-        // Check challenge unlock (ENHANCED)
         function checkChallengeUnlock() {
             const level = currentUser.level || 1;
             const select = document.getElementById('challenge-friend-select');
@@ -2469,7 +2670,6 @@
             }
         }
 
-        // ---------- Incoming Challenges Listener (enhanced) ----------
         function listenForIncomingChallenges() {
             const challengesRef = collection(db, "challenges");
             const q = query(challengesRef, where("to", "==", currentUser.id), where("status", "==", "pending"));
@@ -2481,7 +2681,6 @@
                     const createdAt = data.createdAt?.toDate?.() || new Date(data.createdAt);
                     const ageMinutes = (now - createdAt) / 60000;
                     if (ageMinutes > 5) {
-                        // Auto-delete expired
                         await deleteDoc(docSnap.ref);
                     } else {
                         incoming.push({ id: docSnap.id, ...data, createdAt });
@@ -2491,7 +2690,6 @@
             });
         }
 
-        // Render incoming challenges with full settings (read‑only)
         function renderIncomingChallenges(challenges) {
             const container = document.getElementById('incoming-challenges-list');
             if (!container) return;
@@ -2503,15 +2701,11 @@
             challenges.forEach(ch => {
                 const card = document.createElement('div');
                 card.className = 'challenge-card';
-
-                // Format blacklist
                 const blacklistHtml = ch.blacklistWords?.length
                     ? `<div class="blacklist-words">${ch.blacklistWords.join(', ')}</div>`
                     : '<span>None</span>';
-
                 const timeText = ch.timeLimit === 300 ? '5 minutes' : 'No time limit';
                 const wordCountText = ch.wordCount === -1 ? 'All' : ch.wordCount;
-
                 card.innerHTML = `
                     <div class="challenge-header">
                         <span>${ch.from} challenges you!</span>
@@ -2531,7 +2725,6 @@
                 container.appendChild(card);
             });
 
-            // Attach event listeners
             document.querySelectorAll('.accept-challenge').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const challengeId = e.target.dataset.id;
@@ -2540,12 +2733,10 @@
                     if (!challengeDoc.exists()) { alert("Challenge expired"); return; }
                     const chData = challengeDoc.data();
 
-                    // Create game using challenge settings
                     const gameId = `game_${Date.now()}`;
                     const listWords = wordsData
                         .filter(w => chData.listId === 'all' || (w.lists && w.lists.includes(chData.listId)))
                         .map(w => w.word);
-                    // Apply blacklist
                     const blacklist = chData.blacklistWords || [];
                     const availableWords = listWords.filter(w => !blacklist.includes(w.toLowerCase()));
                     if (availableWords.length === 0) {
@@ -2573,12 +2764,11 @@
                         currentWordIndex: 0,
                         status: 'active',
                         createdAt: serverTimestamp(),
-                        timeLimit: chData.timeLimit || 0  // could be used for total game timer
+                        timeLimit: chData.timeLimit || 0
                     });
 
                     await updateDoc(doc(db, "challenges", challengeId), { status: 'accepted', gameId });
                     alert("Challenge accepted! Game started.");
-                    // Switch to Live Play tab
                     document.querySelector('[data-mode="live"]').click();
                     joinLiveGame(gameId, from);
                 });
@@ -2589,15 +2779,11 @@
                     const challengeId = e.target.dataset.id;
                     await updateDoc(doc(db, "challenges", challengeId), { status: 'declined' });
                     setTimeout(() => deleteDoc(doc(db, "challenges", challengeId)), 5000);
-                    // Remove from UI
                     e.target.closest('.challenge-card').remove();
                 });
             });
         }
 
-        // ========== NEW CHALLENGE FUNCTIONS ==========
-
-        // Populate challenge list dropdown
         async function populateChallengeListSelect() {
             const select = document.getElementById('challenge-list-select');
             if (!select) return;
@@ -2617,7 +2803,6 @@
             }
         }
 
-        // Word count button interaction
         function setupWordCountButtons() {
             const buttons = document.querySelectorAll('#word-count-buttons button');
             buttons.forEach(btn => {
@@ -2628,7 +2813,6 @@
             });
         }
 
-        // Check for existing pending outgoing challenge
         async function hasPendingOutgoingChallenge() {
             const q = query(
                 collection(db, "challenges"),
@@ -2636,15 +2820,23 @@
                 where("status", "==", "pending")
             );
             const snap = await getDocs(q);
-            return !snap.empty;
+            const now = Date.now();
+            for (const docSnap of snap.docs) {
+                const data = docSnap.data();
+                const createdAt = data.createdAt?.toDate?.() || new Date(data.createdAt);
+                if ((now - createdAt) / 60000 > 5) {
+                    await deleteDoc(docSnap.ref);
+                } else {
+                    return true;
+                }
+            }
+            return false;
         }
 
-        // Modified send challenge button
         document.getElementById('send-challenge-btn')?.addEventListener('click', async () => {
             const friend = document.getElementById('challenge-friend-select').value;
             if (!friend) { alert("Select a friend"); return; }
 
-            // Only one pending outgoing challenge allowed
             if (await hasPendingOutgoingChallenge()) {
                 alert("You already have a pending outgoing challenge. Please wait for it to be accepted or expired.");
                 return;
@@ -2661,7 +2853,7 @@
 
             const activeCountBtn = document.querySelector('#word-count-buttons button.active');
             let wordCount = activeCountBtn ? activeCountBtn.dataset.count : '5';
-            if (wordCount === 'all') wordCount = -1; // -1 means all words from list (after blacklist)
+            if (wordCount === 'all') wordCount = -1;
 
             const listName = document.querySelector('#challenge-list-select option:checked')?.textContent || listId;
 
@@ -2681,7 +2873,7 @@
             document.getElementById('challenge-msg').innerText = "Challenge sent!";
         });
 
-        // ---------- Real-time Multiplayer (unchanged) ----------
+        // Live Play
         function setupLivePlay() {
             const findMatchBtn = document.getElementById('find-match-btn');
             const findMatchFromTab = document.getElementById('find-match-from-tab');
@@ -2823,213 +3015,121 @@
             document.getElementById('find-match-from-tab').disabled = false;
         }
 
-        // ---------- Leaderboards with filters ----------
-        let leaderboardFilter = 'global';
-        let currentCountryFilter = '';
-        let currentTimeFilter = 'alltime';
+        // ---------- Leaderboards ----------
         function setupLeaderboards() {
-    const usersQuery = query(collection(db, "users"));
-    onSnapshot(usersQuery, (snap) => {
-        const users = [];
-        snap.forEach(u => users.push({ id: u.id, ...u.data() }));
-        filterAndRenderLeaderboard(users);
-    });
+            const usersQuery = query(collection(db, "users"));
+            onSnapshot(usersQuery, (snap) => {
+                latestUsers = [];
+                snap.forEach(u => latestUsers.push({ id: u.id, ...u.data() }));
+                filterAndRenderLeaderboard(latestUsers);
+            });
 
-    document.getElementById('leaderboard-filter-global').addEventListener('click', () => {
-        document.getElementById('leaderboard-filter-global').classList.add('active');
-        document.getElementById('leaderboard-filter-friends').classList.remove('active');
-        leaderboardFilter = 'global';
-    });
-    document.getElementById('leaderboard-filter-friends').addEventListener('click', () => {
-        document.getElementById('leaderboard-filter-friends').classList.add('active');
-        document.getElementById('leaderboard-filter-global').classList.remove('active');
-        leaderboardFilter = 'friends';
-    });
-    document.getElementById('leaderboard-country-filter').addEventListener('change', (e) => {
-        currentCountryFilter = e.target.value;
-    });
-    document.getElementById('leaderboard-time-filter').addEventListener('change', (e) => {
-        currentTimeFilter = e.target.value;
-    });
+            document.getElementById('leaderboard-filter-global').addEventListener('click', () => {
+                document.getElementById('leaderboard-filter-global').classList.add('active');
+                document.getElementById('leaderboard-filter-friends').classList.remove('active');
+                leaderboardFilter = 'global';
+                filterAndRenderLeaderboard(latestUsers);
+            });
+            document.getElementById('leaderboard-filter-friends').addEventListener('click', () => {
+                document.getElementById('leaderboard-filter-friends').classList.add('active');
+                document.getElementById('leaderboard-filter-global').classList.remove('active');
+                leaderboardFilter = 'friends';
+                filterAndRenderLeaderboard(latestUsers);
+            });
+            document.getElementById('leaderboard-country-filter').addEventListener('change', (e) => {
+                currentCountryFilter = e.target.value;
+                filterAndRenderLeaderboard(latestUsers);
+            });
+            document.getElementById('leaderboard-time-filter').addEventListener('change', (e) => {
+                currentTimeFilter = e.target.value;
+                filterAndRenderLeaderboard(latestUsers);
+            });
 
-    document.querySelectorAll('[data-leaderboard]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('[data-leaderboard]').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            document.getElementById('score-leaderboard').classList.add('hidden');
-            document.getElementById('level-leaderboard').classList.add('hidden');
-            document.getElementById('rank-leaderboard').classList.add('hidden');
-            document.getElementById('networth-leaderboard').classList.add('hidden');
-            document.getElementById('weekly-leaderboard').classList.add('hidden');
-            if (btn.dataset.leaderboard === 'score') document.getElementById('score-leaderboard').classList.remove('hidden');
-            if (btn.dataset.leaderboard === 'level') document.getElementById('level-leaderboard').classList.remove('hidden');
-            if (btn.dataset.leaderboard === 'rank') document.getElementById('rank-leaderboard').classList.remove('hidden');
-            if (btn.dataset.leaderboard === 'networth') document.getElementById('networth-leaderboard').classList.remove('hidden');
-            if (btn.dataset.leaderboard === 'weekly') document.getElementById('weekly-leaderboard').classList.remove('hidden');
-        });
-    });
-}
+            document.querySelectorAll('[data-leaderboard]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('[data-leaderboard]').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    document.getElementById('score-leaderboard').classList.add('hidden');
+                    document.getElementById('level-leaderboard').classList.add('hidden');
+                    document.getElementById('rank-leaderboard').classList.add('hidden');
+                    document.getElementById('networth-leaderboard').classList.add('hidden');
+                    document.getElementById('weekly-leaderboard').classList.add('hidden');
+                    if (btn.dataset.leaderboard === 'score') document.getElementById('score-leaderboard').classList.remove('hidden');
+                    if (btn.dataset.leaderboard === 'level') document.getElementById('level-leaderboard').classList.remove('hidden');
+                    if (btn.dataset.leaderboard === 'rank') document.getElementById('rank-leaderboard').classList.remove('hidden');
+                    if (btn.dataset.leaderboard === 'networth') document.getElementById('networth-leaderboard').classList.remove('hidden');
+                    if (btn.dataset.leaderboard === 'weekly') document.getElementById('weekly-leaderboard').classList.remove('hidden');
+                });
+            });
+        }
 
         function filterAndRenderLeaderboard(users) {
-    let filtered = users;
-    if (leaderboardFilter === 'friends' && currentUser.friends) {
-        filtered = users.filter(u => currentUser.friends.includes(u.id) || u.id === currentUser.id);
-    }
-    if (currentCountryFilter) {
-        filtered = filtered.filter(u => u.country === currentCountryFilter);
-    }
-    if (currentTimeFilter === 'monthly') {
-        // placeholder – in real app filter by date
-    } else if (currentTimeFilter === 'weekly') {
-        filtered = filtered.filter(u => (u.weeklyPoints || 0) > 0);
-    }
+            let filtered = users;
+            if (leaderboardFilter === 'friends' && currentUser.friends) {
+                filtered = users.filter(u => currentUser.friends.includes(u.id) || u.id === currentUser.id);
+            }
+            if (currentCountryFilter) {
+                filtered = filtered.filter(u => u.country === currentCountryFilter);
+            }
+            if (currentTimeFilter === 'weekly') {
+                filtered = filtered.filter(u => (u.weeklyPoints || 0) > 0);
+            }
 
-    const scoreSorted = [...filtered].sort((a, b) => (b.points || 0) - (a.points || 0)).slice(0, 10);
-    const scoreBody = document.getElementById('scoreboard-body');
-    if (scoreBody) {
-        scoreBody.innerHTML = scoreSorted.map(u => `
-            <tr>
-                <td><div style="display:flex; align-items:center; gap:6px;">${formatAvatar(u.avatar||'pfp')} ${u.id}${u.title?` (${u.title})`:''} <span class="online-indicator ${(u.lastActive && (new Date() - u.lastActive.toDate())<120000)?'online':'offline'}"></span></div></td>
-                <td style="text-align:right;">${u.points || 0}</td>
-            </tr>
-        `).join('');
-    }
-
-    const levelSorted = [...filtered].sort((a,b)=> (b.level||1)-(a.level||1) || (b.xp||0)-(a.xp||0)).slice(0,10);
-    const levelBody = document.getElementById('levelboard-body');
-    if (levelBody) {
-        levelBody.innerHTML = levelSorted.map(u => `
-            <tr>
-                <td><div style="display:flex; align-items:center; gap:6px;">${formatAvatar(u.avatar||'pfp')} ${u.id}${u.title?` (${u.title})`:''} <span class="online-indicator ${(u.lastActive && (new Date() - u.lastActive.toDate())<120000)?'online':'offline'}"></span></div></td>
-                <td>${u.level||1}</td>
-                <td>${u.xp||0}</td>
-            </tr>
-        `).join('');
-    }
-
-    const rankSorted = [...filtered].sort((a,b)=> (b.rankPoints||0)-(a.rankPoints||0)).slice(0,10);
-    const rankBody = document.getElementById('rankboard-body');
-    if (rankBody) {
-        rankBody.innerHTML = rankSorted.map(u => `
-            <tr>
-                <td><div style="display:flex; align-items:center; gap:6px;">${formatAvatar(u.avatar||'pfp')} ${u.id}${u.title?` (${u.title})`:''} <span class="online-indicator ${(u.lastActive && (new Date() - u.lastActive.toDate())<120000)?'online':'offline'}"></span></div></td>
-                <td style="text-align:right;">${u.rankPoints||0}</td>
-            </tr>
-        `).join('');
-    }
-
-    const netWorthSorted = [...filtered].sort((a,b)=> (b.netWorth||0)-(a.netWorth||0)).slice(0,10);
-    const netWorthBody = document.getElementById('networth-body');
-    if (netWorthBody) {
-        netWorthBody.innerHTML = netWorthSorted.map(u => `
-            <tr>
-                <td><div style="display:flex; align-items:center; gap:6px;">${formatAvatar(u.avatar||'pfp')} ${u.id}${u.title?` (${u.title})`:''} <span class="online-indicator ${(u.lastActive && (new Date() - u.lastActive.toDate())<120000)?'online':'offline'}"></span></div></td>
-                <td style="text-align:right;">${u.netWorth||0}</td>
-            </tr>
-        `).join('');
-    }
-
-    const weeklySorted = [...filtered].sort((a,b)=> (b.weeklyPoints||0)-(a.weeklyPoints||0)).slice(0,10);
-    const weeklyBody = document.getElementById('weekly-body');
-    if (weeklyBody) {
-        weeklyBody.innerHTML = weeklySorted.map(u => `
-            <tr>
-                <td><div style="display:flex; align-items:center; gap:6px;">${formatAvatar(u.avatar||'pfp')} ${u.id}${u.title?` (${u.title})`:''} <span class="online-indicator ${(u.lastActive && (new Date() - u.lastActive.toDate())<120000)?'online':'offline'}"></span></div></td>
-                <td style="text-align:right;">${u.weeklyPoints||0}</td>
-            </tr>
-        `).join('');
-    }
-}
-
-            const scoreSorted = [...filtered].sort((a, b) => (b.points || 0) - (a.points || 0)).slice(0, 10);
+            const scoreSorted = [...filtered].sort((a,b)=> (b.points||0)-(a.points||0)).slice(0,10);
             const scoreBody = document.getElementById('scoreboard-body');
-            scoreBody.innerHTML = "";
-            scoreSorted.forEach(u => {
-                const avatar = u.avatar || 'pfp';
-                const bannerColor = u.bannerColor || '#0f172a';
-                const borderStyle = getBorderStyle(u.border || 'none');
-                const isOnline = u.lastActive && (new Date() - u.lastActive.toDate()) < 120000;
-                const onlineIndicator = `<span class="online-indicator ${isOnline ? 'online' : 'offline'}"></span>`;
-                const titleText = u.title ? ` (${u.title})` : '';
-                scoreBody.innerHTML += `<tr style="background-color: ${bannerColor}30;">` +
-                    `]<span style="display:inline-flex; align-items:center; gap:5px; padding:2px; ${borderStyle}">${formatAvatar(avatar)}</span> ${u.id}${u.isAdmin ? ' ⭐' : ''}${titleText} ${onlineIndicator} </span>` +
-                    `<td style="text-align:right;">${u.points || 0} </span>`;
-            });
+            if (scoreBody) {
+                scoreBody.innerHTML = scoreSorted.map(u => `
+                    <tr>
+                        <td><div style="display:flex; align-items:center; gap:6px;">${formatAvatar(u.avatar||'pfp')} ${u.id}${u.title?` (${u.title})`:''} <span class="online-indicator ${(u.lastActive && (new Date() - u.lastActive.toDate())<120000)?'online':'offline'}"></span></div></td>
+                        <td style="text-align:right;">${u.points||0}</td>
+                    </tr>
+                `).join('');
+            }
 
-            const levelSorted = [...filtered].sort((a,b) => {
-                if (a.level !== b.level) return b.level - a.level;
-                return (b.xp || 0) - (a.xp || 0);
-            }).slice(0,10);
+            const levelSorted = [...filtered].sort((a,b)=> (b.level||1)-(a.level||1) || (b.xp||0)-(a.xp||0)).slice(0,10);
             const levelBody = document.getElementById('levelboard-body');
-            levelBody.innerHTML = "";
-            levelSorted.forEach(u => {
-                const avatar = u.avatar || 'pfp';
-                const bannerColor = u.bannerColor || '#0f172a';
-                const borderStyle = getBorderStyle(u.border || 'none');
-                const isOnline = u.lastActive && (new Date() - u.lastActive.toDate()) < 120000;
-                const onlineIndicator = `<span class="online-indicator ${isOnline ? 'online' : 'offline'}"></span>`;
-                const titleText = u.title ? ` (${u.title})` : '';
-                levelBody.innerHTML += `<tr style="background-color: ${bannerColor}30;">` +
-                    `]<span style="display:inline-flex; align-items:center; gap:5px; padding:2px; ${borderStyle}">${formatAvatar(avatar)}</span> ${u.id}${titleText} ${onlineIndicator} </span>` +
-                    `<td style="text-align:right;">Lv ${u.level || 1} </span><td style="text-align:right;">${u.xp || 0} XP</span>`;
-            });
+            if (levelBody) {
+                levelBody.innerHTML = levelSorted.map(u => `
+                    <tr>
+                        <td><div style="display:flex; align-items:center; gap:6px;">${formatAvatar(u.avatar||'pfp')} ${u.id}${u.title?` (${u.title})`:''} <span class="online-indicator ${(u.lastActive && (new Date() - u.lastActive.toDate())<120000)?'online':'offline'}"></span></div></td>
+                        <td>${u.level||1}</td>
+                        <td>${u.xp||0}</td>
+                    </tr>
+                `).join('');
+            }
 
-            const rankSorted = [...filtered].sort((a, b) => (b.rankPoints || 0) - (a.rankPoints || 0)).slice(0, 10);
+            const rankSorted = [...filtered].sort((a,b)=> (b.rankPoints||0)-(a.rankPoints||0)).slice(0,10);
             const rankBody = document.getElementById('rankboard-body');
-            rankBody.innerHTML = "";
-            rankSorted.forEach(u => {
-                const avatar = u.avatar || 'pfp';
-                const bannerColor = u.bannerColor || '#0f172a';
-                const borderStyle = getBorderStyle(u.border || 'none');
-                const isOnline = u.lastActive && (new Date() - u.lastActive.toDate()) < 120000;
-                const onlineIndicator = `<span class="online-indicator ${isOnline ? 'online' : 'offline'}"></span>`;
-                const titleText = u.title ? ` (${u.title})` : '';
-                rankBody.innerHTML += `<tr style="background-color: ${bannerColor}30;">` +
-                    `]<span style="display:inline-flex; align-items:center; gap:5px; padding:2px; ${borderStyle}">${formatAvatar(avatar)}</span> ${u.id}${titleText} ${onlineIndicator} </span>` +
-                    `<td style="text-align:right;">${u.rankPoints || 0} RP</span>`;
-            });
+            if (rankBody) {
+                rankBody.innerHTML = rankSorted.map(u => `
+                    <tr>
+                        <td><div style="display:flex; align-items:center; gap:6px;">${formatAvatar(u.avatar||'pfp')} ${u.id}${u.title?` (${u.title})`:''} <span class="online-indicator ${(u.lastActive && (new Date() - u.lastActive.toDate())<120000)?'online':'offline'}"></span></div></td>
+                        <td style="text-align:right;">${u.rankPoints||0}</td>
+                    </tr>
+                `).join('');
+            }
 
-            const netWorthSorted = [...filtered].sort((a, b) => (b.netWorth || 0) - (a.netWorth || 0)).slice(0, 20);
+            const netWorthSorted = [...filtered].sort((a,b)=> (b.netWorth||0)-(a.netWorth||0)).slice(0,10);
             const netWorthBody = document.getElementById('networth-body');
-            netWorthBody.innerHTML = "";
-            netWorthSorted.forEach(u => {
-                const avatar = u.avatar || 'pfp';
-                const bannerColor = u.bannerColor || '#0f172a';
-                const borderStyle = getBorderStyle(u.border || 'none');
-                const isOnline = u.lastActive && (new Date() - u.lastActive.toDate()) < 120000;
-                const onlineIndicator = `<span class="online-indicator ${isOnline ? 'online' : 'offline'}"></span>`;
-                const titleText = u.title ? ` (${u.title})` : '';
-                netWorthBody.innerHTML += `<tr style="background-color: ${bannerColor}30;">` +
-                    `]<span style="display:inline-flex; align-items:center; gap:5px; padding:2px; ${borderStyle}">${formatAvatar(avatar)}</span> ${u.id}${u.isAdmin ? ' ⭐' : ''}${titleText} ${onlineIndicator} </span>` +
-                    `<td style="text-align:right;">${u.netWorth || 0} </span>`;
-            });
+            if (netWorthBody) {
+                netWorthBody.innerHTML = netWorthSorted.map(u => `
+                    <tr>
+                        <td><div style="display:flex; align-items:center; gap:6px;">${formatAvatar(u.avatar||'pfp')} ${u.id}${u.title?` (${u.title})`:''} <span class="online-indicator ${(u.lastActive && (new Date() - u.lastActive.toDate())<120000)?'online':'offline'}"></span></div></td>
+                        <td style="text-align:right;">${u.netWorth||0}</td>
+                    </tr>
+                `).join('');
+            }
 
-            const weeklySorted = [...filtered].sort((a,b) => (b.weeklyPoints || 0) - (a.weeklyPoints || 0)).slice(0,10);
+            const weeklySorted = [...filtered].sort((a,b)=> (b.weeklyPoints||0)-(a.weeklyPoints||0)).slice(0,10);
             const weeklyBody = document.getElementById('weekly-body');
-            weeklyBody.innerHTML = "";
-            weeklySorted.forEach(u => {
-                const avatar = u.avatar || 'pfp';
-                const bannerColor = u.bannerColor || '#0f172a';
-                const borderStyle = getBorderStyle(u.border || 'none');
-                const isOnline = u.lastActive && (new Date() - u.lastActive.toDate()) < 120000;
-                const onlineIndicator = `<span class="online-indicator ${isOnline ? 'online' : 'offline'}"></span>`;
-                const titleText = u.title ? ` (${u.title})` : '';
-                weeklyBody.innerHTML += `<tr style="background-color: ${bannerColor}30;">` +
-                    `]<span style="display:inline-flex; align-items:center; gap:5px; padding:2px; ${borderStyle}">${formatAvatar(avatar)}</span> ${u.id}${titleText} ${onlineIndicator} </span>` +
-                    `<td style="text-align:right;">${u.weeklyPoints || 0} </span>`;
-            });
-
-        function getBorderStyle(borderId) {
-            if (borderId === 'none') return 'border: 2px dashed #aaa;';
-            if (borderId === 'gold') return 'border: 4px solid gold;';
-            if (borderId === 'rainbow') return 'border: 4px solid transparent; border-image: repeating-linear-gradient(45deg, red, orange, yellow, green, blue, indigo, violet) 1;';
-            if (borderId === 'glow') return 'border: 2px solid cyan; box-shadow: 0 0 15px cyan;';
-            if (borderId === 'double') return 'border: 6px double white;';
-            if (borderId === 'dashed') return 'border: 4px dashed #ffaa00;';
-            if (borderId === 'fire') return 'border: 4px solid transparent; border-image: linear-gradient(45deg, #ff4e00, #ec9f05) 1;';
-            if (borderId === 'ice') return 'border: 4px solid transparent; border-image: linear-gradient(135deg, #a8edea, #fed6e3) 1;';
-            if (borderId === 'matrix') return 'border: 4px solid #00ff00; box-shadow: 0 0 10px #00ff00;';
-            return '';
+            if (weeklyBody) {
+                weeklyBody.innerHTML = weeklySorted.map(u => `
+                    <tr>
+                        <td><div style="display:flex; align-items:center; gap:6px;">${formatAvatar(u.avatar||'pfp')} ${u.id}${u.title?` (${u.title})`:''} <span class="online-indicator ${(u.lastActive && (new Date() - u.lastActive.toDate())<120000)?'online':'offline'}"></span></div></td>
+                        <td style="text-align:right;">${u.weeklyPoints||0}</td>
+                    </tr>
+                `).join('');
+            }
         }
 
         function formatAvatar(avatar) {
@@ -3040,7 +3140,7 @@
             }
         }
 
-        // ---------- Themes ----------
+        // Themes
         function getAllThemes() {
             return [
                 { className: 'bg-default', name: 'Default', cost: 0, default: true },
@@ -3126,7 +3226,7 @@
                     if (currentUser.unlockedThemes?.includes(t)) {
                         document.getElementById('main-body').className = t;
                     } else if (currentUser.points >= cost) {
-                        if (!await spendPoints(cost, `theme: ${theme.name}`)) {
+                        if (!await spendPoints(cost)) {
                             alert("Not enough points!");
                             return;
                         }
@@ -3144,10 +3244,10 @@
             });
         }
 
-        // ---------- Recover Streak ----------
+        // Recover Streak
         document.getElementById('recover-streak-btn').addEventListener('click', recoverStreak);
 
-        // ---------- Update Stats ----------
+        // Update Stats
         function updateStats() {
             document.getElementById('points-display').innerText = currentUser.points || 0;
             document.getElementById('level-display').innerText = currentUser.level;
@@ -3157,7 +3257,6 @@
             document.getElementById('honey-display').innerText = honeycombs || 0;
         }
 
-        // ---------- Add XP ----------
         async function addXP(amount) {
             if (doubleXpActive) amount *= 2;
             currentUser.xp += amount;
@@ -3187,7 +3286,7 @@
             await updateNetWorth();
         }
 
-        // ---------- Achievements ----------
+        // Achievements
         async function checkAndUnlockAchievement(achievementId) {
             if (currentUser.achievements?.[achievementId]) return;
             const achievement = achievementsList.find(a => a.id === achievementId);
@@ -3216,7 +3315,7 @@
             });
         }
 
-        // ---------- Profile ----------
+        // Profile
         function updateProfilePreview() {
             const preview = document.getElementById('avatar-preview');
             if (currentUser.avatar === 'pfp') {
@@ -3287,7 +3386,7 @@
                     }
                     if (!currentUser.unlockedBorders.includes(b.id) && b.cost > 0) {
                         if (confirm(`Unlock ${b.name} border for ${b.cost} points?`)) {
-                            if (!await spendPoints(b.cost, `border: ${b.name}`)) {
+                            if (!await spendPoints(b.cost)) {
                                 alert("Transaction failed.");
                                 return;
                             }
@@ -3331,7 +3430,7 @@
             document.getElementById('stat-longeststreak').innerText = currentUser.streak || 0;
         }
 
-        // ---------- Friends ----------
+        // Friends
         function loadFriends() {
             const list = document.getElementById('friend-list');
             list.innerHTML = '';
@@ -3373,7 +3472,7 @@
             document.getElementById('friend-username').value = '';
         });
 
-        // ---------- Tabs ----------
+        // Tabs
         function setupTabs() {
             const tabs = document.querySelectorAll('.tab[data-mode]');
             tabs.forEach(tab => {
@@ -3410,11 +3509,10 @@
             });
         }
 
-        // ---------- Word of the Day ----------
+        // Word of the Day
         async function loadWordOfDay() {
-            const words = await getDocs(collection(db, "words"));
-            const allWords = words.docs.map(d => d.data().word);
-            if (allWords.length === 0) return;
+            if (wordsData.length === 0) return;
+            const allWords = wordsData.map(d => d.word);
             const todayIndex = new Date().getDate() % allWords.length;
             wordOfDay = allWords[todayIndex];
             document.getElementById('word-of-day-bonus').innerText = wordOfDayBonus;
@@ -3434,47 +3532,50 @@
             document.getElementById('word-of-day-section').classList.remove('hidden');
         }
 
-        document.getElementById('hear-word-of-day-btn').addEventListener('click', () => {
-            if (wordOfDay) speakWord(wordOfDay);
-        });
+        const hearWordOfDayBtn = document.getElementById('hear-word-of-day-btn');
+        if (hearWordOfDayBtn) {
+            hearWordOfDayBtn.addEventListener('click', () => {
+                if (wordOfDay) speakWord(wordOfDay);
+            });
+        }
 
-        document.getElementById('submit-word-of-day-btn').addEventListener('click', async () => {
-            const input = document.getElementById('word-of-day-spell');
-            const attempt = input.value.trim().toLowerCase();
-            const msg = document.getElementById('word-of-day-msg');
-            const defDiv = document.getElementById('word-of-day-definition');
-            if (!wordOfDay) return;
-            if (attempt === wordOfDay) {
-                await addPoints(wordOfDayPoints);
-                await addXP(wordOfDayBonus);
-                await addHoney(wordOfDayHoney);
-                await updateDoc(doc(db, "users", currentUser.id), { wordOfDayAttempt: getTodayDate() });
-                msg.innerText = `✅ Correct! +${wordOfDayPoints} pts, +${wordOfDayBonus} XP, +${wordOfDayHoney} 🍯`;
-                input.disabled = true;
-                document.getElementById('submit-word-of-day-btn').disabled = true;
-                const definition = await fetchDefinition(wordOfDay);
-                defDiv.innerText = `📖 ${definition}`;
-                defDiv.classList.remove('hidden');
-                playSound('correct');
-            } else {
-                msg.innerText = "❌ Incorrect. Try again!";
-                if (soundEnabled) playSound('wrong');
-                defDiv.classList.add('hidden');
-            }
-        });
+        const submitWordOfDayBtn = document.getElementById('submit-word-of-day-btn');
+        if (submitWordOfDayBtn) {
+            submitWordOfDayBtn.addEventListener('click', async () => {
+                const input = document.getElementById('word-of-day-spell');
+                const attempt = input.value.trim().toLowerCase();
+                const msg = document.getElementById('word-of-day-msg');
+                const defDiv = document.getElementById('word-of-day-definition');
+                if (!wordOfDay) return;
+                if (attempt === wordOfDay) {
+                    await addPoints(wordOfDayPoints);
+                    await addXP(wordOfDayBonus);
+                    await addHoney(wordOfDayHoney);
+                    await updateDoc(doc(db, "users", currentUser.id), { wordOfDayAttempt: getTodayDate() });
+                    msg.innerText = `✅ Correct! +${wordOfDayPoints} pts, +${wordOfDayBonus} XP, +${wordOfDayHoney} 🍯`;
+                    input.disabled = true;
+                    document.getElementById('submit-word-of-day-btn').disabled = true;
+                    const definition = await fetchDefinition(wordOfDay);
+                    defDiv.innerText = `📖 ${definition}`;
+                    defDiv.classList.remove('hidden');
+                    playSound('correct');
+                } else {
+                    msg.innerText = "❌ Incorrect. Try again!";
+                    if (soundEnabled) playSound('wrong');
+                    defDiv.classList.add('hidden');
+                }
+            });
+        }
 
-        // ---------- Word of the Week ----------
         function loadWordOfWeek() {
+            if (wordsData.length === 0) return;
             const weekNumber = Math.floor(new Date().getTime() / (7 * 24 * 60 * 60 * 1000));
             const wordsList = wordsData.map(w => w.word);
-            if (wordsList.length === 0) return;
             const wordOfWeek = wordsList[weekNumber % wordsList.length];
             const container = document.getElementById('word-of-week-display');
             container.innerHTML = `<p>🌟 Word of the Week: <strong>${wordOfWeek}</strong></p><p>Spell it this week for triple XP!</p>`;
-            // In a full implementation, you'd check if the user spelled this word during the week and reward extra XP.
         }
 
-        // ---------- Seasonal Event ----------
         function checkSeasonalEvent() {
             const month = new Date().getMonth();
             let eventName = '';
@@ -3486,7 +3587,7 @@
             document.getElementById('event-section').classList.remove('hidden');
         }
 
-        // ---------- Classic Mode ----------
+        // Classic Mode
         document.getElementById('play-word-btn').addEventListener('click', () => {
             const filtered = getFilteredWords();
             if (filtered.length === 0) { document.getElementById('game-msg').innerText = "No words in this list!"; return; }
@@ -3566,7 +3667,7 @@
 
         document.getElementById('skip-word-btn').addEventListener('click', async () => {
             if (!currentWord) { document.getElementById('game-msg').innerText = "No word to skip."; return; }
-            if (!await spendPoints(10, "skip word")) {
+            if (!await spendPoints(10)) {
                 document.getElementById('game-msg').innerText = "Not enough points (need 10).";
                 return;
             }
@@ -3587,7 +3688,18 @@
             factDiv.classList.remove('hidden');
         });
 
-        // ---------- Challenge Mode ----------
+        function getFilteredWords() {
+            return wordsData.filter(w => currentListId === 'all' || (w.lists && w.lists.includes(currentListId))).map(w => w.word);
+        }
+
+        function getWeightedWord(last) {
+            const filtered = getFilteredWords();
+            if (filtered.length === 0) return null;
+            const next = filtered[Math.floor(Math.random() * filtered.length)];
+            return next === last ? (filtered[0] || next) : next;
+        }
+
+        // Challenge Mode
         let challengeWords = [], challengeIndex = 0, challengeTimer = null, challengeTimeLeft = 15;
         document.getElementById('start-challenge-btn').addEventListener('click', () => {
             const filtered = getFilteredWords();
@@ -3599,9 +3711,14 @@
             document.getElementById('challenge-spell').disabled = false;
             document.getElementById('submit-challenge-btn').disabled = false;
             document.getElementById('challenge-show-meaning-btn').classList.remove('hidden');
+            document.getElementById('challenge-hear-btn').classList.remove('hidden');
             document.getElementById('challenge-meaning-display').classList.add('hidden');
             document.getElementById('challenge-recap-area').classList.add('hidden');
             nextChallengeWord();
+        });
+
+        document.getElementById('challenge-hear-btn')?.addEventListener('click', () => {
+            if (currentWord) speakWord(currentWord);
         });
 
         function nextChallengeWord() {
@@ -3667,6 +3784,7 @@
             document.getElementById('challenge-spell').disabled = true;
             document.getElementById('submit-challenge-btn').disabled = true;
             document.getElementById('challenge-show-meaning-btn').classList.add('hidden');
+            document.getElementById('challenge-hear-btn').classList.add('hidden');
             document.getElementById('challenge-msg').innerText = completed ? "🎉 Challenge complete!" : "⏰ Time's up!";
             const list = document.getElementById('challenge-words-list');
             list.innerHTML = '';
@@ -3687,7 +3805,7 @@
             document.getElementById('start-challenge-btn').click();
         });
 
-        // ---------- Ranked Mode ----------
+        // Ranked Mode
         let rankedMultiplier = 1.0;
         document.getElementById('play-ranked-btn').addEventListener('click', () => {
             const filtered = getFilteredWords();
@@ -3699,7 +3817,7 @@
             }
             speakWord(currentWord);
             const diff = analyzeWordDifficulty(currentWord);
-            rankedMultiplier = diff * 0.4; // 0.4x per difficulty level, max 2.0x
+            rankedMultiplier = diff * 0.4;
             document.getElementById('difficulty-mult').innerText = rankedMultiplier.toFixed(1) + 'x';
         });
 
@@ -3745,7 +3863,7 @@
             }
         });
 
-        // ---------- Admin Panel Toggle ----------
+        // Admin Panel Toggle
         document.getElementById('toggle-word-list-btn').addEventListener('click', () => {
             const list = document.getElementById('word-list-admin');
             const quiz = document.getElementById('quiz-area');
@@ -3764,7 +3882,7 @@
             }
         });
 
-        // ---------- Admin Manager ----------
+        // Admin Manager
         document.getElementById('make-admin-btn').addEventListener('click', async () => {
             if (!masterAdmin) { alert("Only master admin can do this"); return; }
             const username = document.getElementById('admin-target').value.trim().toLowerCase();
@@ -3788,7 +3906,6 @@
             document.getElementById('admin-msg').innerText = `${username} is no longer Admin.`;
         });
 
-        // ---------- Leaderboard Management ----------
         document.getElementById('remove-from-scoreboard-btn').addEventListener('click', async () => {
             if (!masterAdmin) return;
             const target = document.getElementById('lb-username').value.trim().toLowerCase();
@@ -3804,7 +3921,15 @@
             alert('Rank points reset');
         });
 
-        // ---------- Import Word Lists ----------
+        document.getElementById('delete-account-btn').addEventListener('click', async () => {
+            if (!masterAdmin) { alert("Only master admin"); return; }
+            const target = document.getElementById('delete-target').value.trim().toLowerCase();
+            if (!target) return;
+            if (target === 'abdullah') { alert("Cannot delete master admin"); return; }
+            await deleteDoc(doc(db, "users", target));
+            document.getElementById('delete-msg').innerText = `Account ${target} deleted.`;
+        });
+
         document.querySelectorAll('[data-list]').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 if (!isAdmin) { alert("Admins only"); return; }
@@ -3826,7 +3951,7 @@
             });
         });
 
-        // ---------- Backup / Export ----------
+        // Backup / Export
         document.getElementById('export-data-btn').addEventListener('click', () => {
             const data = JSON.stringify(currentUser);
             const blob = new Blob([data], { type: 'application/json' });
@@ -3856,7 +3981,7 @@
             }
         });
 
-        // ---------- Settings Toggles ----------
+        // Settings Toggles
         document.getElementById('congrats-toggle').addEventListener('change', (e) => { congratsEnabled = e.target.checked; });
         document.getElementById('sound-toggle').addEventListener('change', (e) => { soundEnabled = e.target.checked; });
         document.getElementById('auto-theme-toggle').addEventListener('change', (e) => {
@@ -3874,7 +3999,7 @@
             }
         });
 
-        // ---------- Tutorial ----------
+        // Tutorial
         if (!localStorage.getItem('tutorialShown')) {
             document.getElementById('tutorial').classList.remove('hidden');
             localStorage.setItem('tutorialShown', 'true');
@@ -3883,7 +4008,7 @@
             document.getElementById('tutorial').classList.add('hidden');
         });
 
-        // ---------- Avatar / Color / Save ----------
+        // Avatar / Color / Save
         document.querySelectorAll('.avatar-options button').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.avatar-options button').forEach(b => b.classList.remove('selected'));
@@ -3914,13 +4039,11 @@
             await updateNetWorth();
         });
 
-        // ========== UNSEEN MODE IMPLEMENTATION ==========
-        // Difficulty to word length mapping
+        // ========== UNSEEN MODE ==========
         function getWordLengthForDifficulty(diff) {
             if (diff === 'easy') return { min: 3, max: 5 };
             if (diff === 'normal') return { min: 5, max: 8 };
             if (diff === 'hard') return { min: 8, max: 12 };
-            // random: between 3 and 12
             return { min: 3, max: 12 };
         }
 
@@ -3972,108 +4095,116 @@
         const unseenMeaningDisplay = document.getElementById('unseen-meaning-display');
         const unseenShowMeaningBtn = document.getElementById('unseen-show-meaning-btn');
 
-        fetchUnseenBtn.addEventListener('click', async () => {
-            fetchUnseenBtn.disabled = true;
-            fetchUnseenBtn.innerText = 'Loading...';
-            const difficulty = unseenDifficulty;
-            try {
-                const { word, definition } = await fetchWordAndDefinition(difficulty);
-                unseenCurrentWord = word;
-                unseenDefinition = definition;
-                unseenIncorrectAttempts = 0;
-                unseenSpellInput.disabled = false;
-                submitUnseenBtn.disabled = false;
-                hearUnseenBtn.disabled = false;
-                unseenShowMeaningBtn.disabled = false;
-                unseenSpellInput.value = '';
-                unseenMsg.innerText = 'New word fetched! Click "Hear Word" to listen.';
-                unseenMeaningDisplay.classList.add('hidden');
-            } catch (err) {
-                unseenMsg.innerText = 'Failed to fetch word. Try again.';
-                console.error(err);
-            } finally {
-                fetchUnseenBtn.disabled = false;
-                fetchUnseenBtn.innerText = '🌐 Fetch New Word';
-            }
-        });
-
-        hearUnseenBtn.addEventListener('click', () => {
-            if (unseenCurrentWord) {
-                speakWord(unseenCurrentWord);
-            } else {
-                unseenMsg.innerText = 'Please fetch a word first.';
-            }
-        });
-
-        submitUnseenBtn.addEventListener('click', async () => {
-            const attempt = unseenSpellInput.value.trim().toLowerCase();
-            if (!unseenCurrentWord) {
-                unseenMsg.innerText = 'No word loaded. Fetch a word first.';
-                return;
-            }
-            if (attempt === unseenCurrentWord) {
-                const diff = analyzeWordDifficulty(unseenCurrentWord);
-                const xpGain = xpForDifficulty(diff);
-                let pointsGain = 15;
-                if (doublePointsActive) {
-                    pointsGain *= 2;
-                    doublePointsActive = false;
-                    document.querySelector('[data-type="doublepoints"]')?.classList.remove('active');
+        if (fetchUnseenBtn) {
+            fetchUnseenBtn.addEventListener('click', async () => {
+                fetchUnseenBtn.disabled = true;
+                fetchUnseenBtn.innerText = 'Loading...';
+                const difficulty = unseenDifficulty;
+                try {
+                    const { word, definition } = await fetchWordAndDefinition(difficulty);
+                    unseenCurrentWord = word;
+                    unseenDefinition = definition;
+                    unseenIncorrectAttempts = 0;
+                    unseenSpellInput.disabled = false;
+                    submitUnseenBtn.disabled = false;
+                    hearUnseenBtn.disabled = false;
+                    unseenShowMeaningBtn.disabled = false;
+                    unseenSpellInput.value = '';
+                    unseenMsg.innerText = 'New word fetched! Click "Hear Word" to listen.';
+                    unseenMeaningDisplay.classList.add('hidden');
+                } catch (err) {
+                    unseenMsg.innerText = 'Failed to fetch word. Try again.';
+                    console.error(err);
+                } finally {
+                    fetchUnseenBtn.disabled = false;
+                    fetchUnseenBtn.innerText = '🌐 Fetch New Word';
                 }
-                await addPoints(pointsGain);
-                await addXP(xpGain);
-                await addHoney(2);
-                unseenMsg.innerText = `✅ Correct! +${pointsGain} pts, +${xpGain} XP, +2 🍯 (Unseen Mode)`;
-                await updateWordStat(unseenCurrentWord, 'correct');
-                playSound('correct');
-                updateQuestProgress('spell');
+            });
+        }
 
-                currentUser.totalCorrect = (currentUser.totalCorrect || 0) + 1;
-                await updateDoc(doc(db, "users", currentUser.id), { totalCorrect: currentUser.totalCorrect });
-                if (currentUser.totalCorrect === 1) await checkAndUnlockAchievement('first-word');
-                if (currentUser.totalCorrect === 100) await checkAndUnlockAchievement('100-correct');
-                if (currentUser.totalCorrect === 500) await checkAndUnlockAchievement('word-master');
+        if (hearUnseenBtn) {
+            hearUnseenBtn.addEventListener('click', () => {
+                if (unseenCurrentWord) {
+                    speakWord(unseenCurrentWord);
+                } else {
+                    unseenMsg.innerText = 'Please fetch a word first.';
+                }
+            });
+        }
 
-                unseenCurrentWord = '';
-                unseenDefinition = '';
-                unseenSpellInput.disabled = true;
-                submitUnseenBtn.disabled = true;
-                hearUnseenBtn.disabled = true;
-                unseenShowMeaningBtn.disabled = true;
-                unseenSpellInput.value = '';
-                unseenMeaningDisplay.classList.add('hidden');
-            } else {
-                unseenIncorrectAttempts++;
-                if (unseenIncorrectAttempts >= 3 && !secondChanceActive) {
-                    unseenMsg.innerText = `❌ Three incorrect attempts! The word was: "${unseenCurrentWord}".`;
-                    await updateWordStat(unseenCurrentWord, 'incorrect');
+        if (submitUnseenBtn) {
+            submitUnseenBtn.addEventListener('click', async () => {
+                const attempt = unseenSpellInput.value.trim().toLowerCase();
+                if (!unseenCurrentWord) {
+                    unseenMsg.innerText = 'No word loaded. Fetch a word first.';
+                    return;
+                }
+                if (attempt === unseenCurrentWord) {
+                    const diff = analyzeWordDifficulty(unseenCurrentWord);
+                    const xpGain = xpForDifficulty(diff);
+                    let pointsGain = 15;
+                    if (doublePointsActive) {
+                        pointsGain *= 2;
+                        doublePointsActive = false;
+                        document.querySelector('[data-type="doublepoints"]')?.classList.remove('active');
+                    }
+                    await addPoints(pointsGain);
+                    await addXP(xpGain);
+                    await addHoney(2);
+                    unseenMsg.innerText = `✅ Correct! +${pointsGain} pts, +${xpGain} XP, +2 🍯 (Unseen Mode)`;
+                    await updateWordStat(unseenCurrentWord, 'correct');
+                    playSound('correct');
+                    updateQuestProgress('spell');
+
+                    currentUser.totalCorrect = (currentUser.totalCorrect || 0) + 1;
+                    await updateDoc(doc(db, "users", currentUser.id), { totalCorrect: currentUser.totalCorrect });
+                    if (currentUser.totalCorrect === 1) await checkAndUnlockAchievement('first-word');
+                    if (currentUser.totalCorrect === 100) await checkAndUnlockAchievement('100-correct');
+                    if (currentUser.totalCorrect === 500) await checkAndUnlockAchievement('word-master');
+
                     unseenCurrentWord = '';
                     unseenDefinition = '';
                     unseenSpellInput.disabled = true;
                     submitUnseenBtn.disabled = true;
                     hearUnseenBtn.disabled = true;
                     unseenShowMeaningBtn.disabled = true;
+                    unseenSpellInput.value = '';
                     unseenMeaningDisplay.classList.add('hidden');
-                } else if (secondChanceActive && unseenIncorrectAttempts >= 3) {
-                    secondChanceActive = false;
-                    unseenMsg.innerText = "🔄 Second chance used! Keep trying.";
                 } else {
-                    unseenMsg.innerText = `❌ Incorrect. Attempts: ${unseenIncorrectAttempts}/3`;
-                    await updateWordStat(unseenCurrentWord, 'incorrect');
+                    unseenIncorrectAttempts++;
+                    if (unseenIncorrectAttempts >= 3 && !secondChanceActive) {
+                        unseenMsg.innerText = `❌ Three incorrect attempts! The word was: "${unseenCurrentWord}".`;
+                        await updateWordStat(unseenCurrentWord, 'incorrect');
+                        unseenCurrentWord = '';
+                        unseenDefinition = '';
+                        unseenSpellInput.disabled = true;
+                        submitUnseenBtn.disabled = true;
+                        hearUnseenBtn.disabled = true;
+                        unseenShowMeaningBtn.disabled = true;
+                        unseenMeaningDisplay.classList.add('hidden');
+                    } else if (secondChanceActive && unseenIncorrectAttempts >= 3) {
+                        secondChanceActive = false;
+                        unseenMsg.innerText = "🔄 Second chance used! Keep trying.";
+                    } else {
+                        unseenMsg.innerText = `❌ Incorrect. Attempts: ${unseenIncorrectAttempts}/3`;
+                        await updateWordStat(unseenCurrentWord, 'incorrect');
+                    }
+                    if (soundEnabled) playSound('wrong');
                 }
-                if (soundEnabled) playSound('wrong');
-            }
-        });
+            });
+        }
 
-        unseenShowMeaningBtn.addEventListener('click', () => {
-            if (unseenDefinition) {
-                unseenMeaningDisplay.innerText = `📖 ${unseenDefinition}`;
-                unseenMeaningDisplay.classList.remove('hidden');
-            } else {
-                unseenMeaningDisplay.innerText = 'No definition available.';
-                unseenMeaningDisplay.classList.remove('hidden');
-            }
-        });
+        if (unseenShowMeaningBtn) {
+            unseenShowMeaningBtn.addEventListener('click', () => {
+                if (unseenDefinition) {
+                    unseenMeaningDisplay.innerText = `📖 ${unseenDefinition}`;
+                    unseenMeaningDisplay.classList.remove('hidden');
+                } else {
+                    unseenMeaningDisplay.innerText = 'No definition available.';
+                    unseenMeaningDisplay.classList.remove('hidden');
+                }
+            });
+        }
 
         document.querySelectorAll('#unseen-mode .difficulty-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -4083,18 +4214,16 @@
             });
         });
 
-        // ========== TOURNAMENT MODE (Simplified) ==========
+        // ========== TOURNAMENT MODE ==========
         let tournamentPlayers = [];
         let tournamentRounds = [];
         let userInTournament = false;
 
         document.getElementById('join-tournament-btn')?.addEventListener('click', async () => {
             if (userInTournament) { alert("You are already in a tournament!"); return; }
-            // Simulate joining tournament (in a real app, you'd add to Firestore)
             tournamentPlayers.push(currentUser.id);
             userInTournament = true;
             alert("Joined tournament! Waiting for more players...");
-            // For demo, start tournament after 8 players (simulate with a button)
             if (tournamentPlayers.length === 8) {
                 startTournament();
             } else {
@@ -4103,17 +4232,14 @@
         });
 
         function startTournament() {
-            // Create bracket (random seeding)
             const shuffled = [...tournamentPlayers].sort(() => 0.5 - Math.random());
             tournamentRounds = [];
-            let round = 0;
             let matches = [];
             for (let i = 0; i < shuffled.length; i += 2) {
                 matches.push([shuffled[i], shuffled[i+1]]);
             }
             tournamentRounds.push(matches);
             renderTournamentBracket();
-            // In a real app, you'd handle match progression.
         }
 
         function renderTournamentBracket() {
@@ -4132,7 +4258,7 @@
             container.appendChild(roundDiv);
         }
 
-        // ========== LOCAL MULTIPLAYER (Pass & Play) ==========
+        // ========== LOCAL MULTIPLAYER ==========
         let localGameActive = false;
         let localPlayers = ['Player 1', 'Player 2'];
         let localScores = [0, 0];
@@ -4161,9 +4287,9 @@
             document.getElementById('local-msg').innerText = `New word for ${localPlayers[localTurn]}! Click "Hear Word".`;
         });
 
-        document.getElementById('local-hear-word').addEventListener('click', () => {
+        document.getElementById('local-hear-word')?.addEventListener('click', () => {
             if (localCurrentWord) speakWord(localCurrentWord);
-            else document.getElementById('local-msg').innerText = "No word loaded. Restart game?";
+            else document.getElementById('local-msg').innerText = "No word to hear. Restart game?";
         });
 
         document.getElementById('local-submit').addEventListener('click', () => {
@@ -4171,9 +4297,8 @@
             if (!localCurrentWord) { document.getElementById('local-msg').innerText = "No active word."; return; }
             if (attempt === localCurrentWord) {
                 localScores[localTurn] += 10;
-                document.getElementById('local-msg').innerText = `✅ Correct! +10 points to ${localPlayers[localTurn]}`;
+                document.getElementById('local-msg').innerText = `✅ Correct! +10 points, ${localPlayers[localTurn]}!`;
                 playSound('correct');
-                // Next word
                 if (localWordList.length > 0) {
                     localCurrentWord = localWordList.shift();
                     localTurn = 1 - localTurn;
@@ -4182,7 +4307,6 @@
                     document.getElementById('local-spell').value = '';
                     document.getElementById('local-msg').innerText = `New word for ${localPlayers[localTurn]}! Click "Hear Word".`;
                 } else {
-                    // Game over
                     let winner = localScores[0] > localScores[1] ? localPlayers[0] : (localScores[1] > localScores[0] ? localPlayers[1] : "Tie");
                     document.getElementById('local-msg').innerHTML = `🎉 Game over! Winner: ${winner}. Scores: ${localPlayers[0]}: ${localScores[0]}, ${localPlayers[1]}: ${localScores[1]}`;
                     localGameActive = false;
@@ -4218,7 +4342,7 @@
             document.getElementById('sim-msg').innerText = `Round ${simulatorRound}: Click "Hear Word" to begin.`;
         });
 
-        document.getElementById('sim-hear-word').addEventListener('click', () => {
+        document.getElementById('sim-hear-word')?.addEventListener('click', () => {
             if (simulatorCurrentWord) speakWord(simulatorCurrentWord);
         });
 
@@ -4226,19 +4350,16 @@
             const attempt = document.getElementById('sim-spell').value.trim().toLowerCase();
             if (!simulatorCurrentWord) { document.getElementById('sim-msg').innerText = "No word loaded."; return; }
             if (attempt === simulatorCurrentWord) {
-                // Correct: advance to next round
                 simulatorRound++;
                 if (simulatorWords.length > 0) {
                     simulatorCurrentWord = simulatorWords.shift();
                     document.getElementById('sim-round').innerText = simulatorRound;
                     document.getElementById('sim-msg').innerHTML = `✅ Correct! On to round ${simulatorRound}!`;
                     playSound('correct');
-                    // Give points and XP (optional)
                     await addPoints(10);
                     await addXP(5);
                     document.getElementById('sim-spell').value = '';
                 } else {
-                    // Winner!
                     document.getElementById('sim-msg').innerHTML = `🏆 Congratulations! You survived all rounds! You are the Spelling Bee Champion! 🏆`;
                     simulatorActive = false;
                     document.getElementById('sim-spell').disabled = true;
@@ -4248,7 +4369,6 @@
                     await addHoney(20);
                 }
             } else {
-                // Incorrect: eliminated
                 document.getElementById('sim-msg').innerHTML = `❌ Incorrect! You are eliminated. The word was "${simulatorCurrentWord}".`;
                 simulatorActive = false;
                 document.getElementById('sim-spell').disabled = true;
@@ -4326,15 +4446,52 @@
             ctx.stroke();
         }
 
-        function getFilteredWords() {
-            return wordsData.filter(w => currentListId === 'all' || (w.lists && w.lists.includes(currentListId))).map(w => w.word);
+        async function loadGlobalStats() {
+            const globalRef = doc(db, "globalStats", "stats");
+            const snap = await getDoc(globalRef);
+            if (snap.exists()) {
+                globalHoneyTotal = snap.data().totalHoney || 0;
+                globalLastThreshold = snap.data().lastRewardThreshold || 0;
+            }
+            updateGlobalQuestUI();
         }
 
-        function getWeightedWord(last) {
-            const filtered = getFilteredWords();
-            if (filtered.length === 0) return null;
-            const next = filtered[Math.floor(Math.random() * filtered.length)];
-            return next === last ? (filtered[0] || next) : next;
+        async function loadFriendRequests() {
+            const requestsRef = collection(db, "users", currentUser.id, "friendRequests");
+            const snap = await getDocs(requestsRef);
+            friendRequests = [];
+            snap.forEach(doc => friendRequests.push({ id: doc.id, ...doc.data() }));
+            renderFriendRequests();
+        }
+
+        async function refreshDailyQuests() {
+            if (!currentUser.dailyQuests || currentUser.dailyQuests.length === 0) {
+                const available = getAvailableQuests();
+                if (available.length >= 3) {
+                    const shuffled = [...available].sort(() => 0.5 - Math.random());
+                    dailyQuests = shuffled.slice(0,3).map(q => ({ ...q, progress: 0, completed: false }));
+                } else {
+                    dailyQuests = [];
+                }
+                currentUser.dailyQuests = dailyQuests;
+                await updateDoc(doc(db, "users", currentUser.id), { dailyQuests });
+            } else {
+                dailyQuests = currentUser.dailyQuests;
+            }
+            renderQuests();
+        }
+
+        function populateFriendDropdown() {
+            const select = document.getElementById('challenge-friend-select');
+            if (!select) return;
+            select.innerHTML = '<option value="">Select a friend</option>';
+            if (!currentUser.friends) return;
+            currentUser.friends.forEach(friend => {
+                const opt = document.createElement('option');
+                opt.value = friend;
+                opt.textContent = friend;
+                select.appendChild(opt);
+            });
         }
 
         async function updateWordStat(word, result) {
@@ -4400,112 +4557,87 @@
         }
 
         function setupUnseenMode() {
-            // Already implemented above
+            // Listeners are already attached at top level; this is just a placeholder.
         }
 
         function setupPublicMode() {
-            // Placeholder
+            document.getElementById('public-create-btn').addEventListener('click', () => {
+                document.getElementById('public-create-panel').classList.remove('hidden');
+                document.getElementById('public-play-panel').classList.add('hidden');
+                document.getElementById('public-create-btn').classList.add('active');
+                document.getElementById('public-play-btn').classList.remove('active');
+            });
+            document.getElementById('public-play-btn').addEventListener('click', () => {
+                document.getElementById('public-create-panel').classList.add('hidden');
+                document.getElementById('public-play-panel').classList.remove('hidden');
+                document.getElementById('public-create-btn').classList.remove('active');
+                document.getElementById('public-play-btn').classList.add('active');
+                loadPublicWords();
+            });
+            document.getElementById('public-submit-word').addEventListener('click', async () => {
+                const word = document.getElementById('public-new-word').value.trim().toLowerCase();
+                if (!word) return;
+                if (isInappropriate(word)) {
+                    document.getElementById('public-create-msg').innerText = "This word contains inappropriate content.";
+                    return;
+                }
+                await addDoc(customWordsRef, { word, status: 'pending', submittedBy: currentUser.id, timestamp: serverTimestamp() });
+                document.getElementById('public-create-msg').innerText = "Word submitted! It will be reviewed by an admin.";
+                document.getElementById('public-new-word').value = '';
+            });
+            document.getElementById('play-public-word-btn').addEventListener('click', () => {
+                if (publicWordDeck.length === 0) { loadPublicWords(); return; }
+                const idx = Math.floor(Math.random() * publicWordDeck.length);
+                currentPublicWord = publicWordDeck[idx];
+                speakWord(currentPublicWord);
+            });
+            document.getElementById('submit-public-btn').addEventListener('click', async () => {
+                const attempt = document.getElementById('public-spell').value.trim().toLowerCase();
+                if (!currentPublicWord) { document.getElementById('public-msg').innerText = "Hear a word first!"; return; }
+                if (attempt === currentPublicWord) {
+                    await addPoints(10);
+                    await addXP(10);
+                    document.getElementById('public-msg').innerText = "✅ Correct! +10 pts, +10 XP";
+                    playSound('correct');
+                    currentPublicWord = '';
+                } else {
+                    document.getElementById('public-msg').innerText = "❌ Incorrect. Try again.";
+                    playSound('wrong');
+                }
+            });
+            document.getElementById('public-show-meaning-btn').addEventListener('click', async () => {
+                if (!currentPublicWord) return;
+                const def = await fetchDefinition(currentPublicWord);
+                document.getElementById('public-meaning-display').innerText = `📖 ${def}`;
+                document.getElementById('public-meaning-display').classList.remove('hidden');
+            });
         }
 
-        async function refreshAdminWords() {
-            // Placeholder
+        async function loadPublicWords() {
+            const snap = await getDocs(query(customWordsRef, where("status", "==", "approved")));
+            publicWordDeck = snap.docs.map(d => d.data().word);
+            document.getElementById('public-deck-info').innerText = `${publicWordDeck.length} words available`;
+        }
+
+        function updatePowerupsDisplay() {
+            const level = currentUser.level || 1;
+            const unlocked = level >= 35;
+            const msg = document.getElementById('powerup-unlock-msg');
+            const remaining = Math.max(0, 35 - level);
+            document.getElementById('levels-remaining').innerText = remaining;
+            if (unlocked) {
+                msg.innerText = 'Power-ups are unlocked!';
+            } else {
+                msg.innerText = `Power-ups unlock at level 35. ${remaining} levels remaining.`;
+            }
+            const buttons = document.querySelectorAll('.powerup-btn');
+            buttons.forEach(btn => {
+                btn.disabled = !unlocked;
+            });
+            document.getElementById('powerup-drag-menu').classList.toggle('hidden', !unlocked);
         }
 
         document.getElementById('reroll-quests-btn').addEventListener('click', rerollQuests);
-
-        // ---------- App Setup ----------
-        async function setupApp() {
-            document.getElementById('login-screen').classList.add('hidden');
-            document.getElementById('app-screen').classList.remove('hidden');
-            document.getElementById('welcome-text').innerText = "Hello, " + currentUser.id.charAt(0).toUpperCase() + currentUser.id.slice(1);
-            document.getElementById('profile-username').innerText = currentUser.id;
-            updateProfilePreview();
-            updateStats();
-            await checkStreakOnLogin();
-            await refreshDailyQuests();
-            await loadGlobalStats();
-            await loadFriendRequests();
-
-            if (masterAdmin || isAdmin) {
-                document.getElementById('admin-toggle-btn').classList.remove('hidden');
-                if (masterAdmin) {
-                    document.getElementById('role-badge').innerText = "MASTER ADMIN";
-                } else {
-                    document.getElementById('role-badge').innerText = "CLASS ADMIN";
-                }
-                refreshAdminWords();
-                document.getElementById('recalc-networth-btn').addEventListener('click', recalcAllNetWorths);
-                loadCustomWordsForAdmin();
-                setupListManagement();
-            } else {
-                document.getElementById('admin-toggle-btn').classList.add('hidden');
-                document.getElementById('role-badge').innerText = "STUDENT";
-            }
-
-            if (currentUser.level >= 15) document.getElementById('challenge-tab').disabled = false;
-            if (currentUser.level >= 30) document.getElementById('ranked-tab').disabled = false;
-            if (currentUser.level >= 50) document.getElementById('live-tab').disabled = false;
-
-            checkSeasonalEvent();
-            await loadWordOfDay();
-            loadWordOfWeek();
-            loadFriends();
-            loadAchievements();
-            renderBorderOptions();
-            renderTitleOptions();
-            updateStatsPanel();
-            updateProblemWordsList();
-            renderQuests();
-            renderMastery();
-            drawGraph();
-            populateFriendDropdown();
-            checkChallengeUnlock();
-            listenForIncomingChallenges();
-
-            renderShop();
-            await loadLists();
-            await fetchWords();
-            setupLeaderboards();
-            setupTabs();
-            setupUnseenMode();
-
-            await populateChallengeListSelect();
-            setupWordCountButtons();
-
-            document.getElementById('claim-daily-bonus-btn').addEventListener('click', claimDailyBonus);
-            document.getElementById('buy-xp-btn').addEventListener('click', buyXP);
-            document.getElementById('buy-honey-btn').addEventListener('click', buyHoney);
-
-            document.getElementById('show-meaning-btn').addEventListener('click', async () => {
-                if (!currentWord) { document.getElementById('game-msg').innerText = "No word to show meaning for."; return; }
-                const definition = await fetchDefinition(currentWord);
-                document.getElementById('meaning-display').innerText = `📖 ${definition}`;
-                document.getElementById('meaning-display').classList.remove('hidden');
-            });
-
-            document.getElementById('challenge-show-meaning-btn').addEventListener('click', async () => {
-                if (!currentWord) { document.getElementById('challenge-msg').innerText = "No word to show meaning for."; return; }
-                const definition = await fetchDefinition(currentWord);
-                document.getElementById('challenge-meaning-display').innerText = `📖 ${definition}`;
-                document.getElementById('challenge-meaning-display').classList.remove('hidden');
-            });
-
-            document.getElementById('live-show-meaning-btn').addEventListener('click', async () => {
-                if (!currentWord) { document.getElementById('live-msg').innerText = "No word to show meaning for."; return; }
-                const definition = await fetchDefinition(currentWord);
-                document.getElementById('live-meaning-display').innerText = `📖 ${definition}`;
-                document.getElementById('live-meaning-display').classList.remove('hidden');
-            });
-
-            setupPublicMode();
-            setupLivePlay();
-            updatePowerupsDisplay();
-
-            document.getElementById('list-select').addEventListener('change', handleListChange);
-        }
-
-        async function loadCustomWordsForAdmin() { /* placeholder */ }
-        function setupListManagement() { /* placeholder */ }
     </script>
 </body>
 </html>
