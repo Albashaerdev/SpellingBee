@@ -368,6 +368,13 @@
         .powerup-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 10px 0; }
         .powerup-card { background: rgba(255,255,255,0.1); padding: 10px; border-radius: 16px; text-align: center; }
 
+        #powerup-grid.collapsed {
+            display: none;
+        }
+        #powerup-unlock-msg.collapsed {
+            display: none;
+        }
+
         .congrats-animation { animation: bounce 0.5s ease; }
         @keyframes bounce { 0%,100%{transform:scale(1);} 50%{transform:scale(1.2); background:gold; color:black;} }
 
@@ -641,6 +648,42 @@
             margin-left: 5px;
         }
 
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 400px;
+        }
+
+        .toast {
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 16px 20px;
+            border-radius: 12px;
+            border-left: 4px solid var(--primary);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease-out;
+            min-width: 280px;
+        }
+
+        .toast.success { border-left-color: var(--success); }
+        .toast.error { border-left-color: var(--danger); }
+        .toast.warning { border-left-color: var(--warning); }
+
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(400px); opacity: 0; }
+        }
+
         @media (max-width: 600px) {
             body { padding: 8px; }
             .container { padding: 15px; }
@@ -651,6 +694,19 @@
             .shop-grid { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); }
             .shop-grid button { font-size: 0.8rem; padding: 10px 4px; }
             .table-container { margin: 0; }
+            .toast-container {
+                bottom: 10px;
+                right: 10px;
+                left: 10px;
+                max-width: none;
+            }
+            .toast {
+                min-width: auto;
+            }
+            .powerup-grid { grid-template-columns: 1fr; }
+            .powerup-card { padding: 12px 8px; }
+            .powerup-card button { width: 100%; padding: 8px 4px; font-size: 0.85rem; }
+            #powerup-toggle-btn { display: inline-block !important; }
         }
 
         /* ===== NEW CHALLENGE UI ===== */
@@ -964,7 +1020,10 @@
 
                 <!-- Power-ups -->
                 <section id="powerups-section">
-                    <h3 class="section-title">⚡ Power-Ups</h3>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                        <h3 class="section-title" style="margin: 0;">⚡ Power-Ups</h3>
+                        <button id="powerup-toggle-btn" style="display: none; background: rgba(255,255,255,0.1); border: none; color: white; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.9rem;">Show</button>
+                    </div>
                     <div id="powerup-unlock-msg" class="msg">Power-ups unlock at level 35. <span id="levels-remaining">X</span> levels remaining.</div>
                     <div class="powerup-grid" id="powerup-grid">
                         <div class="powerup-card">💡 Hint <button id="use-hint" class="powerup-btn" data-price="50" data-type="hint" disabled>Use (50 pts)</button></div>
@@ -1040,6 +1099,12 @@
                             </select>
                             <button id="delete-list-only" style="background:var(--warning);">Delete list (remove association)</button>
                             <button id="delete-list-and-words" style="background:var(--danger);">Delete list and all words</button>
+                        </div>
+                        <div style="margin-bottom:15px;">
+                            <h5>Merge Lists</h5>
+                            <input type="text" id="merge-list-name" placeholder="New merged list name" style="margin-bottom:8px; width:100%;">
+                            <div id="merge-lists-checkboxes" style="margin-bottom:8px; max-height:150px; overflow-y:auto; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:8px;"></div>
+                            <button id="merge-lists-btn" style="background:var(--info);">Merge Selected Lists</button>
                         </div>
                         <div>
                             <h5>Assign words to list</h5>
@@ -1488,6 +1553,25 @@
             });
         });
 
+        // Toast notification system
+        function showToast(message, type = 'info') {
+            if (!document.getElementById('toast-container')) {
+                const container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'toast-container';
+                document.body.appendChild(container);
+            }
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease-out forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
         // ---------- Game State ----------
         let currentUser = null;
         let wordsData = [];
@@ -1507,6 +1591,8 @@
         let dailyWords = 0;
         const DAILY_GOAL = 5;
         let incorrectAttempts = 0;
+        let wordsRemaining = 0;
+        let totalWordsInSession = 0;
         let doubleXpActive = false;
         let doublePointsActive = false;
         let shieldActive = false;
@@ -2074,17 +2160,57 @@
                 const name = document.getElementById('new-list-name').value.trim();
                 if (!name) return;
                 await addDoc(collection(db, "lists"), { name });
+                document.getElementById('new-list-name').value = '';
+                showToast(`📋 List "${name}" created!`, 'success');
+                loadLists();
+            });
+            document.getElementById('merge-lists-btn').addEventListener('click', async () => {
+                const mergeName = document.getElementById('merge-list-name').value.trim();
+                if (!mergeName) {
+                    showToast('Please enter a name for the merged list', 'warning');
+                    return;
+                }
+                const checkboxes = document.querySelectorAll('#merge-lists-checkboxes input[type="checkbox"]:checked');
+                if (checkboxes.length < 2) {
+                    showToast('Please select at least 2 lists to merge', 'warning');
+                    return;
+                }
+                const selectedListIds = Array.from(checkboxes).map(cb => cb.value);
+                const newListRef = await addDoc(collection(db, "lists"), { name: mergeName });
+                const wordsSnap = await getDocs(collection(db, "words"));
+                const mergedWords = new Set();
+                wordsSnap.forEach(doc => {
+                    const word = doc.data();
+                    if (word.lists && word.lists.some(id => selectedListIds.includes(id))) {
+                        mergedWords.add(doc.id);
+                    }
+                });
+                for (const wordId of mergedWords) {
+                    const wordRef = doc(db, "words", wordId);
+                    const wordSnap = await getDoc(wordRef);
+                    const lists = wordSnap.data().lists || [];
+                    if (!lists.includes(newListRef.id)) {
+                        lists.push(newListRef.id);
+                        await updateDoc(wordRef, { lists });
+                    }
+                }
+                document.getElementById('merge-list-name').value = '';
+                document.querySelectorAll('#merge-lists-checkboxes input[type="checkbox"]').forEach(cb => cb.checked = false);
+                showToast(`✨ Merged list "${mergeName}" created with ${mergedWords.size} words!`, 'success');
                 loadLists();
             });
             document.getElementById('delete-list-only').addEventListener('click', async () => {
                 const listId = document.getElementById('list-to-delete').value;
                 if (!listId) return;
+                const listName = listsData.find(l => l.id === listId)?.name || 'List';
                 await deleteDoc(doc(db, "lists", listId));
+                showToast(`🗑️ "${listName}" removed from lists`, 'info');
                 loadLists();
             });
             document.getElementById('delete-list-and-words').addEventListener('click', async () => {
                 const listId = document.getElementById('list-to-delete').value;
                 if (!listId) return;
+                const listName = listsData.find(l => l.id === listId)?.name || 'List';
                 const snap = await getDocs(collection(db, "words"));
                 for (const docSnap of snap.docs) {
                     const word = docSnap.data();
@@ -2094,6 +2220,7 @@
                     }
                 }
                 await deleteDoc(doc(db, "lists", listId));
+                showToast(`🗑️ "${listName}" deleted with all words`, 'info');
                 loadLists();
                 fetchWords();
             });
@@ -3620,6 +3747,10 @@ function onTouchEnd() {
             const filtered = getFilteredWords();
             if (filtered.length === 0) { document.getElementById('game-msg').innerText = "No words in this list!"; return; }
             if (!currentWord) {
+                if (wordsRemaining === 0) {
+                    totalWordsInSession = filtered.length;
+                    wordsRemaining = filtered.length;
+                }
                 const nextWord = getWeightedWord(lastWord);
                 if (!nextWord) {
                     document.getElementById('game-msg').innerText = "No words available?";
@@ -3673,6 +3804,11 @@ function onTouchEnd() {
                     msg.classList.add('congrats-animation');
                     setTimeout(() => msg.classList.remove('congrats-animation'), 500);
                 }
+                wordsRemaining--;
+                if (wordsRemaining <= 0) {
+                    wordsRemaining = totalWordsInSession;
+                }
+                updateDeckInfo();
             } else {
                 incorrectAttempts++;
                 correctCount = 0;
@@ -4538,8 +4674,7 @@ function onTouchEnd() {
         }
 
         function updateDeckInfo() {
-            const deck = getFilteredWords();
-            document.getElementById('deck-info').innerText = `${deck.length} words available`;
+            document.getElementById('deck-info').innerText = wordsRemaining > 0 ? `${wordsRemaining} words remaining` : `Ready to play!`;
         }
 
         async function loadLists() {
@@ -4569,6 +4704,25 @@ function onTouchEnd() {
                 opt.textContent = list.name;
                 assignList.appendChild(opt);
             });
+            const mergeContainer = document.getElementById('merge-lists-checkboxes');
+            if (mergeContainer) {
+                mergeContainer.innerHTML = '';
+                listsData.forEach(list => {
+                    const label = document.createElement('label');
+                    label.style.display = 'flex';
+                    label.style.alignItems = 'center';
+                    label.style.gap = '8px';
+                    label.style.padding = '4px';
+                    label.style.cursor = 'pointer';
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.value = list.id;
+                    checkbox.style.cursor = 'pointer';
+                    label.appendChild(checkbox);
+                    label.appendChild(document.createTextNode(list.name));
+                    mergeContainer.appendChild(label);
+                });
+            }
         }
 
         async function fetchWords() {
@@ -4579,6 +4733,8 @@ function onTouchEnd() {
 
         function handleListChange(e) {
             currentListId = e.target.value;
+            wordsRemaining = 0;
+            totalWordsInSession = 0;
             updateDeckInfo();
             currentWord = "";
             incorrectAttempts = 0;
@@ -4670,6 +4826,25 @@ function onTouchEnd() {
         }
 
         document.getElementById('reroll-quests-btn').addEventListener('click', rerollQuests);
+
+        // Mobile powerups toggle
+        const powerupToggleBtn = document.getElementById('powerup-toggle-btn');
+        const powerupGrid = document.getElementById('powerup-grid');
+        const powerupMsg = document.getElementById('powerup-unlock-msg');
+        if (powerupToggleBtn) {
+            powerupToggleBtn.addEventListener('click', () => {
+                const isCollapsed = powerupGrid.classList.contains('collapsed');
+                powerupGrid.classList.toggle('collapsed');
+                powerupMsg.classList.toggle('collapsed');
+                powerupToggleBtn.textContent = isCollapsed ? 'Hide' : 'Show';
+            });
+            // Start collapsed on mobile
+            if (window.innerWidth <= 600) {
+                powerupGrid.classList.add('collapsed');
+                powerupMsg.classList.add('collapsed');
+                powerupToggleBtn.textContent = 'Show';
+            }
+        }
     </script>
 </body>
 </html>
