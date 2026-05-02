@@ -761,6 +761,47 @@
             opacity: 0.7;
             margin-top: 5px;
         }
+        .time-slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex: 2;
+        }
+        .diagonal-slider {
+            flex: 1;
+            height: 8px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.2));
+            border-radius: 5px;
+            outline: none;
+            cursor: pointer;
+        }
+        .diagonal-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .diagonal-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .time-display {
+            min-width: 45px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
 
         /* Read‑only challenge card for invited friend */
         .challenge-card {
@@ -1424,10 +1465,10 @@
                             <select id="challenge-list-select"></select>
                         </div>
                         <div class="setting-row">
-                            <span class="setting-label">Time</span>
-                            <div class="time-options">
-                                <label><input type="radio" name="challenge-time" value="0" checked> O = No time challenge</label>
-                                <label><input type="radio" name="challenge-time" value="300"> Maximum 5 minutes</label>
+                            <span class="setting-label">Time Limit</span>
+                            <div class="time-slider-container">
+                                <input type="range" id="challenge-time-slider" min="0" max="60" value="0" class="diagonal-slider">
+                                <span id="time-display" class="time-display">0s</span>
                             </div>
                         </div>
                         <div class="setting-row">
@@ -2355,6 +2396,10 @@
 
             await populateChallengeListSelect();
             setupWordCountButtons();
+            setupChallengeTimeSlider();
+
+            document.getElementById('challenge-friend-select')?.addEventListener('change', validateChallengeSendBtn);
+            document.getElementById('challenge-list-select')?.addEventListener('change', validateChallengeSendBtn);
 
             document.getElementById('claim-daily-bonus-btn').addEventListener('click', claimDailyBonus);
             document.getElementById('buy-xp-btn').addEventListener('click', buyXP);
@@ -2859,7 +2904,7 @@ function onTouchEnd() {
                 const blacklistHtml = ch.blacklistWords?.length
                     ? `<div class="blacklist-words">${ch.blacklistWords.join(', ')}</div>`
                     : '<span>None</span>';
-                const timeText = ch.timeLimit === 300 ? '5 minutes' : 'No time limit';
+                const timeText = ch.timeLimit > 0 ? `${ch.timeLimit}s` : 'No time limit';
                 const wordCountText = ch.wordCount === -1 ? 'All' : ch.wordCount;
                 card.innerHTML = `
                     <div class="challenge-header">
@@ -2964,7 +3009,34 @@ function onTouchEnd() {
                 btn.addEventListener('click', () => {
                     buttons.forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
+                    validateChallengeSendBtn();
                 });
+            });
+        }
+
+        function validateChallengeSendBtn() {
+            const friendSelect = document.getElementById('challenge-friend-select');
+            const listSelect = document.getElementById('challenge-list-select');
+            const timeSlider = document.getElementById('challenge-time-slider');
+            const wordCountBtn = document.querySelector('#word-count-buttons button.active');
+            const sendBtn = document.getElementById('send-challenge-btn');
+
+            const friend = friendSelect.value;
+            const list = listSelect.value;
+            const time = parseInt(timeSlider.value) || 0;
+
+            const isValid = friend && list && time > 0 && wordCountBtn;
+            sendBtn.disabled = !isValid;
+        }
+
+        function setupChallengeTimeSlider() {
+            const slider = document.getElementById('challenge-time-slider');
+            const display = document.getElementById('time-display');
+
+            slider.addEventListener('input', (e) => {
+                const value = parseInt(e.target.value);
+                display.textContent = value > 0 ? `${value}s` : '0s';
+                validateChallengeSendBtn();
             });
         }
 
@@ -3000,8 +3072,9 @@ function onTouchEnd() {
             const listId = document.getElementById('challenge-list-select').value;
             if (!listId) { alert("Please select a word list"); return; }
 
-            const timeRadio = document.querySelector('input[name="challenge-time"]:checked');
-            const timeLimit = timeRadio ? parseInt(timeRadio.value) : 0;
+            const timeSlider = document.getElementById('challenge-time-slider');
+            const timeLimit = parseInt(timeSlider.value) || 0;
+            if (timeLimit === 0) { alert("Please set a time limit"); return; }
 
             const blacklistInput = document.getElementById('challenge-blacklist').value.trim();
             const blacklistWords = blacklistInput ? blacklistInput.split(',').map(w => w.trim().toLowerCase()) : [];
