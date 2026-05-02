@@ -505,8 +505,12 @@
         .powerup-drag-menu .powerup-icon.active { background: var(--success); }
         .powerup-drag-menu .powerup-icon:active { transform: scale(0.9); }
         @media (max-width: 768px) {
-            .powerup-drag-menu { display: none; }
-        }
+    .powerup-drag-menu {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+}
 
         .challenge-recap {
             background: rgba(0,0,0,0.5);
@@ -2450,6 +2454,30 @@
         const dragMenu = document.getElementById('powerup-drag-menu');
         let offsetX, offsetY;
         dragMenu.addEventListener('mousedown', (e) => { if (e.target.classList.contains('powerup-icon')) return; e.preventDefault(); offsetX = e.clientX - dragMenu.getBoundingClientRect().left; offsetY = e.clientY - dragMenu.getBoundingClientRect().top; document.addEventListener('mousemove', onMouseMove); document.addEventListener('mouseup', onMouseUp); });
+        // Touch support for mobile dragging
+dragMenu.addEventListener('touchstart', (e) => {
+    if (e.target.classList.contains('powerup-icon')) return; // allow tapping icons
+    const touch = e.touches[0];
+    const rect = dragMenu.getBoundingClientRect();
+    offsetX = touch.clientX - rect.left;
+    offsetY = touch.clientY - rect.top;
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchend', onTouchEnd);
+});
+
+function onTouchMove(e) {
+    e.preventDefault(); // prevent scrolling while dragging
+    const touch = e.touches[0];
+    dragMenu.style.left = (touch.clientX - offsetX) + 'px';
+    dragMenu.style.top = (touch.clientY - offsetY) + 'px';
+    dragMenu.style.bottom = 'auto';
+    dragMenu.style.right = 'auto';
+}
+
+function onTouchEnd() {
+    document.removeEventListener('touchmove', onTouchMove);
+    document.removeEventListener('touchend', onTouchEnd);
+}
         function onMouseMove(e) { dragMenu.style.left = (e.clientX - offsetX) + 'px'; dragMenu.style.top = (e.clientY - offsetY) + 'px'; dragMenu.style.bottom = 'auto'; dragMenu.style.right = 'auto'; }
         function onMouseUp() { document.removeEventListener('mousemove', onMouseMove); document.removeEventListener('mouseup', onMouseUp); }
 
@@ -3146,7 +3174,7 @@
                 { className: 'bg-default', name: 'Default', cost: 0, default: true },
                 { className: 'bg-ocean', name: 'Ocean', cost: 20 },
                 { className: 'bg-neon', name: 'Neon Pulse', cost: 30 },
-                { className: 'bg-galaxy', name: 'Galaxy', cost: 50 },
+                { className: 'bg-galaxy', name: 'Galaxy', cost: 1000 },
                 { className: 'bg-chess', name: 'Chess', cost: 20 },
                 { className: 'bg-roblox', name: 'Roblox', cost: 40 },
                 { className: 'bg-fortnite', name: 'Fortnite', cost: 60 },
@@ -4624,17 +4652,21 @@
             const unlocked = level >= 35;
             const msg = document.getElementById('powerup-unlock-msg');
             const remaining = Math.max(0, 35 - level);
-            document.getElementById('levels-remaining').innerText = remaining;
-            if (unlocked) {
-                msg.innerText = 'Power-ups are unlocked!';
-            } else {
-                msg.innerText = `Power-ups unlock at level 35. ${remaining} levels remaining.`;
+            const levelsEl = document.getElementById('levels-remaining');
+            if (levelsEl) levelsEl.innerText = remaining;
+            if (msg) {
+                if (unlocked) {
+                    msg.innerText = 'Power-ups are unlocked!';
+                } else {
+                    msg.innerText = `Power-ups unlock at level 35. ${remaining} levels remaining.`;
+                }
             }
             const buttons = document.querySelectorAll('.powerup-btn');
             buttons.forEach(btn => {
                 btn.disabled = !unlocked;
             });
-            document.getElementById('powerup-drag-menu').classList.toggle('hidden', !unlocked);
+            const dragMenu = document.getElementById('powerup-drag-menu');
+            if (dragMenu) dragMenu.classList.toggle('hidden', !unlocked);
         }
 
         document.getElementById('reroll-quests-btn').addEventListener('click', rerollQuests);
