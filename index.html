@@ -834,6 +834,83 @@
             padding: 5px;
             border-radius: 8px;
         }
+
+        /* Challenge Game Room */
+        .challenge-game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 16px;
+            margin-bottom: 20px;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        .challenge-game-header .scores {
+            font-size: 1.2rem;
+            color: var(--warning);
+        }
+        .challenge-game-content {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .word-counter {
+            text-align: center;
+            opacity: 0.8;
+            font-size: 0.95rem;
+        }
+        .challenge-timer {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--warning);
+            min-height: 40px;
+        }
+        #challenge-word-input {
+            padding: 12px;
+            font-size: 1.1rem;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            background: rgba(0,0,0,0.3);
+            color: white;
+        }
+        #challenge-word-input::placeholder {
+            color: rgba(255,255,255,0.5);
+        }
+        #challenge-results-detail {
+            background: rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 15px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .result-row {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr 1fr;
+            gap: 10px;
+            padding: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 0.9rem;
+        }
+        .result-row:last-child {
+            border-bottom: none;
+        }
+        .result-row .word {
+            font-weight: 600;
+        }
+        .result-row .result {
+            text-align: center;
+            font-weight: 500;
+        }
+        .result-correct {
+            color: var(--success);
+        }
+        .result-incorrect {
+            color: var(--danger);
+        }
     </style>
 </head>
 <body class="bg-default" id="main-body">
@@ -1492,6 +1569,30 @@
                     </div>
                     <button id="send-challenge-btn" class="big-btn" disabled>Send Challenge</button>
                     <p id="challenge-msg" class="msg"></p>
+                </section>
+
+                <!-- Challenge Gameplay Room -->
+                <section id="challenge-game-room" class="hidden">
+                    <h3 class="section-title">⚔️ Challenge</h3>
+                    <div class="challenge-game-header">
+                        <div>vs <span id="challenge-opponent-name">Opponent</span></div>
+                        <div class="scores">
+                            <span id="challenge-my-score">0</span> - <span id="challenge-opponent-score">0</span>
+                        </div>
+                    </div>
+                    <div class="challenge-game-content">
+                        <div class="word-counter">Word <span id="challenge-word-index">1</span> of <span id="challenge-total-words">10</span></div>
+                        <div id="challenge-timer" class="challenge-timer"></div>
+                        <button id="challenge-hear-btn" class="big-btn" style="background:var(--info);">🔊 Hear Word</button>
+                        <input type="text" id="challenge-word-input" placeholder="Type the word..." autocomplete="off">
+                        <button id="challenge-submit-btn" class="big-btn">Submit</button>
+                        <div id="challenge-game-msg" class="msg"></div>
+                    </div>
+                    <div id="challenge-results-container" class="hidden">
+                        <h4>Results</h4>
+                        <div id="challenge-results-detail"></div>
+                        <button id="challenge-return-btn" class="big-btn">Return</button>
+                    </div>
                 </section>
 
                 <!-- Public Quest -->
@@ -2397,6 +2498,7 @@
             await populateChallengeListSelect();
             setupWordCountButtons();
             setupChallengeTimeSlider();
+            setupChallengeGameButtons();
 
             document.getElementById('challenge-friend-select')?.addEventListener('change', validateChallengeSendBtn);
             document.getElementById('challenge-list-select')?.addEventListener('change', validateChallengeSendBtn);
@@ -2957,7 +3059,7 @@ function onTouchEnd() {
                         player1: from,
                         player2: currentUser.id,
                         player1Words: playerWords,
-                        player2Words: [...playerWords].sort(() => 0.5 - Math.random()),
+                        player2Words: playerWords,
                         player1Score: 0,
                         player2Score: 0,
                         turn: Math.random() < 0.5 ? from : currentUser.id,
@@ -2969,8 +3071,7 @@ function onTouchEnd() {
 
                     await updateDoc(doc(db, "challenges", challengeId), { status: 'accepted', gameId });
                     alert("Challenge accepted! Game started.");
-                    document.querySelector('[data-mode="live"]').click();
-                    joinLiveGame(gameId, from);
+                    startChallengeGame(gameId, from, chData.timeLimit || 0);
                 });
             });
 
@@ -3040,6 +3141,41 @@ function onTouchEnd() {
             });
         }
 
+        function setupChallengeGameButtons() {
+            document.getElementById('challenge-hear-btn')?.addEventListener('click', () => {
+                if (challengeGameState.currentGame) {
+                    const isPlayer1 = challengeGameState.currentGame.player1 === currentUser.id;
+                    const wordList = isPlayer1 ? challengeGameState.currentGame.player1Words : challengeGameState.currentGame.player2Words;
+                    const word = wordList[challengeGameState.currentGame.currentWordIndex];
+                    if (word) speakWord(word);
+                }
+            });
+
+            document.getElementById('challenge-submit-btn')?.addEventListener('click', async () => {
+                if (challengeGameState.currentGame) {
+                    await submitChallengeWord(challengeGameState.gameId, challengeGameState.currentGame);
+                }
+            });
+
+            document.getElementById('challenge-word-input')?.addEventListener('keypress', async (e) => {
+                if (e.key === 'Enter' && challengeGameState.currentGame) {
+                    await submitChallengeWord(challengeGameState.gameId, challengeGameState.currentGame);
+                }
+            });
+
+            document.getElementById('challenge-return-btn')?.addEventListener('click', () => {
+                if (challengeGameState.unsubscribe) {
+                    challengeGameState.unsubscribe();
+                    challengeGameState.unsubscribe = null;
+                }
+                document.getElementById('challenge-game-room').classList.add('hidden');
+                document.getElementById('challenge-friend-section').classList.remove('hidden');
+                document.getElementById('challenge-game-content').classList.remove('hidden');
+                document.getElementById('challenge-results-container').classList.add('hidden');
+                challengeGameState = {};
+            });
+        }
+
         async function hasPendingOutgoingChallenge() {
             const q = query(
                 collection(db, "challenges"),
@@ -3058,6 +3194,167 @@ function onTouchEnd() {
                 }
             }
             return false;
+        }
+
+        let challengeGameState = {};
+        let challengeGameListener = null;
+        let challengeTimerInterval = null;
+
+        function startChallengeGame(gameId, opponentName, timeLimit) {
+            challengeGameState = {
+                gameId,
+                opponentName,
+                timeLimit,
+                unsubscribe: null,
+                results: {} // Track results by word index
+            };
+
+            document.getElementById('challenge-game-room').classList.remove('hidden');
+            document.getElementById('challenge-friend-section').classList.add('hidden');
+            document.getElementById('challenge-opponent-name').textContent = opponentName;
+            document.getElementById('challenge-word-input').value = '';
+            document.getElementById('challenge-game-msg').textContent = '';
+
+            challengeGameState.unsubscribe = onSnapshot(doc(db, "games", gameId), (gameSnap) => {
+                if (!gameSnap.exists()) return;
+                const gameData = gameSnap.data();
+
+                const isPlayer1 = gameData.player1 === currentUser.id;
+                const myScore = isPlayer1 ? gameData.player1Score : gameData.player2Score;
+                const opponentScore = isPlayer1 ? gameData.player2Score : gameData.player1Score;
+
+                document.getElementById('challenge-my-score').textContent = myScore;
+                document.getElementById('challenge-opponent-score').textContent = opponentScore;
+                document.getElementById('challenge-word-index').textContent = gameData.currentWordIndex + 1;
+                document.getElementById('challenge-total-words').textContent = gameData.player1Words.length;
+
+                const isMyTurn = gameData.turn === currentUser.id;
+                document.getElementById('challenge-word-input').disabled = !isMyTurn;
+                document.getElementById('challenge-submit-btn').disabled = !isMyTurn;
+                document.getElementById('challenge-hear-btn').disabled = false;
+
+                if (gameData.status === 'finished') {
+                    finishChallengeGame(gameData, isPlayer1);
+                } else if (isMyTurn) {
+                    if (timeLimit > 0) startChallengeTimer(timeLimit, gameId, gameData);
+                    document.getElementById('challenge-game-msg').textContent = "Your turn!";
+                } else {
+                    if (challengeTimerInterval) clearInterval(challengeTimerInterval);
+                    document.getElementById('challenge-game-msg').textContent = `${opponentName} is spelling...`;
+                }
+
+                challengeGameState.currentGame = gameData;
+            });
+        }
+
+        function startChallengeTimer(seconds, gameId, gameData) {
+            if (challengeTimerInterval) clearInterval(challengeTimerInterval);
+            let remaining = seconds;
+            const timerEl = document.getElementById('challenge-timer');
+
+            const tick = async () => {
+                timerEl.textContent = remaining + 's';
+                remaining--;
+                if (remaining < 0) {
+                    clearInterval(challengeTimerInterval);
+                    timerEl.textContent = '';
+                    document.getElementById('challenge-game-msg').textContent = 'Time up!';
+                    await submitChallengeWord(gameId, gameData, true);
+                }
+            };
+
+            tick();
+            challengeTimerInterval = setInterval(tick, 1000);
+        }
+
+        async function submitChallengeWord(gameId, gameData, timeUp = false) {
+            if (challengeTimerInterval) clearInterval(challengeTimerInterval);
+            document.getElementById('challenge-timer').textContent = '';
+
+            const isPlayer1 = gameData.player1 === currentUser.id;
+            const wordList = isPlayer1 ? gameData.player1Words : gameData.player2Words;
+            const correctWord = wordList[gameData.currentWordIndex];
+            const attempt = document.getElementById('challenge-word-input').value.trim().toLowerCase();
+
+            if (!attempt && !timeUp) {
+                document.getElementById('challenge-game-msg').textContent = 'Please enter a word';
+                return;
+            }
+
+            const isCorrect = attempt === correctWord.toLowerCase();
+            const scoreField = isPlayer1 ? 'player1Score' : 'player2Score';
+            const newScore = gameData[scoreField] + (isCorrect ? 1 : 0);
+            const nextWordIndex = gameData.currentWordIndex + 1;
+            const isGameFinished = nextWordIndex >= gameData.player1Words.length;
+
+            // Store result
+            if (!challengeGameState.results[gameData.currentWordIndex]) {
+                challengeGameState.results[gameData.currentWordIndex] = {};
+            }
+            const playerKey = isPlayer1 ? 'player1' : 'player2';
+            challengeGameState.results[gameData.currentWordIndex][playerKey] = {
+                attempt: attempt || '(no answer)',
+                correct: isCorrect
+            };
+
+            const updateData = {
+                [scoreField]: newScore,
+                currentWordIndex: nextWordIndex,
+                turn: isPlayer1 ? gameData.player2 : gameData.player1,
+                status: isGameFinished ? 'finished' : 'active',
+                results: challengeGameState.results
+            };
+
+            await updateDoc(doc(db, "games", gameId), updateData);
+
+            document.getElementById('challenge-word-input').value = '';
+            document.getElementById('challenge-game-msg').textContent = isCorrect ? '✅ Correct!' : `❌ Wrong! It was "${correctWord}"`;
+        }
+
+        function finishChallengeGame(gameData, isPlayer1) {
+            if (challengeTimerInterval) clearInterval(challengeTimerInterval);
+            document.getElementById('challenge-timer').textContent = '';
+
+            document.getElementById('challenge-game-content').classList.add('hidden');
+            document.getElementById('challenge-results-container').classList.remove('hidden');
+
+            const p1Score = gameData.player1Score;
+            const p2Score = gameData.player2Score;
+            const resultDetail = document.getElementById('challenge-results-detail');
+            const results = gameData.results || challengeGameState.results || {};
+
+            let html = `<div style="text-align:center; margin-bottom:15px; font-weight:600;">
+                <div>Final Score: ${p1Score} - ${p2Score}</div>
+                <div style="color:var(--success); margin-top:5px;">${p1Score > p2Score ? gameData.player1 + ' wins!' : p2Score > p1Score ? gameData.player2 + ' wins!' : "It's a tie!"}</div>
+            </div>`;
+
+            html += '<div style="font-weight:600; margin-bottom:10px;">Word Results:</div>';
+            html += '<div style="display:grid; grid-template-columns:2fr 1fr 1fr; gap:10px; font-size:0.85rem; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; margin-bottom:10px;"><div>Word</div><div style="text-align:center;">' + gameData.player1 + '</div><div style="text-align:center;">' + gameData.player2 + '</div></div>';
+
+            gameData.player1Words.forEach((word, idx) => {
+                const result = results[idx] || {};
+                const p1Result = result.player1;
+                const p2Result = result.player2;
+
+                html += `
+                    <div style="display:grid; grid-template-columns:2fr 1fr 1fr; gap:10px; padding:10px; border-bottom:1px solid rgba(255,255,255,0.1); font-size:0.9rem;">
+                        <div><strong>${idx + 1}.</strong> ${word}</div>
+                        <div style="text-align:center; ${p1Result?.correct ? 'color:var(--success)' : 'color:var(--danger)'}">
+                            ${p1Result ? (p1Result.correct ? '✅' : '❌') : '–'}
+                        </div>
+                        <div style="text-align:center; ${p2Result?.correct ? 'color:var(--success)' : 'color:var(--danger)'}">
+                            ${p2Result ? (p2Result.correct ? '✅' : '❌') : '–'}
+                        </div>
+                    </div>
+                `;
+            });
+
+            resultDetail.innerHTML = html;
+
+            if (challengeGameState.unsubscribe) {
+                challengeGameState.unsubscribe();
+                challengeGameState.unsubscribe = null;
+            }
         }
 
         document.getElementById('send-challenge-btn')?.addEventListener('click', async () => {
